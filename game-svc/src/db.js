@@ -28,6 +28,7 @@ async function initSchema(p) {
       options_i18n TEXT NOT NULL DEFAULT '{}',
       correct_option INTEGER NOT NULL DEFAULT 0,
       explanation_i18n TEXT DEFAULT '{}',
+      concept_tags TEXT DEFAULT '[]',
       created_by TEXT,
       created_at TEXT DEFAULT CURRENT_TIMESTAMP
     )
