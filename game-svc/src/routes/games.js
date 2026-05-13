@@ -111,6 +111,11 @@ router.get('/sessions/:id/next-question', async (req, res) => {
     const options = typeof q.options_i18n === 'string' ? JSON.parse(q.options_i18n) : q.options_i18n;
     const explanation = typeof q.explanation_i18n === 'string' ? JSON.parse(q.explanation_i18n) : q.explanation_i18n;
 
+    // hint: 2 wrong indices to eliminate (never includes correct_option)
+    const wrongIndices = [0,1,2,3].filter(i => i !== q.correct_option);
+    wrongIndices.sort(() => Math.random() - 0.5);
+    const hint_eliminated = wrongIndices.slice(0, 2);
+
     res.json({
       id: q.id,
       subject: q.subject,
@@ -118,6 +123,7 @@ router.get('/sessions/:id/next-question', async (req, res) => {
       type: q.type,
       content: content.en || content,
       options: options.en || options,
+      hint_eliminated,
       question_number: answeredIds.length + 1,
       total_questions: 10
     });
@@ -272,28 +278,72 @@ router.get('/sessions/user/:userId', async (req, res) => {
   }
 });
 
-// POST /games/questions (educator creates question)
+// GET /games/questions — returns all questions in flat format for educator content page
+router.get('/questions', async (req, res) => {
+  try {
+    const result = await query('SELECT * FROM questions ORDER BY created_at DESC');
+    const LETTERS = ['A', 'B', 'C', 'D'];
+    const rows = result.rows.map(q => {
+      const content = typeof q.content_i18n === 'string' ? JSON.parse(q.content_i18n) : q.content_i18n;
+      const options = typeof q.options_i18n === 'string' ? JSON.parse(q.options_i18n) : q.options_i18n;
+      const opts = options.en || options;
+      return {
+        id: q.id,
+        subject: q.subject,
+        difficulty: q.difficulty,
+        question_text: content.en || content,
+        option_a: opts[0] || '',
+        option_b: opts[1] || '',
+        option_c: opts[2] || '',
+        option_d: opts[3] || '',
+        correct_option: LETTERS[q.correct_option] || 'A',
+      };
+    });
+    res.json(rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to get questions' });
+  }
+});
+
+// POST /games/questions (educator creates question — accepts flat format)
 router.post('/questions', async (req, res) => {
   try {
-    const { subject, difficulty, type = 'mcq', content, options, correct_option, explanation } = req.body;
+    const {
+      subject, difficulty, question_text, option_a, option_b, option_c, option_d,
+      correct_option, // 'A'|'B'|'C'|'D' or 0-3
+      // legacy format
+      content, options, explanation,
+    } = req.body;
     const created_by = req.headers['x-user-id'] || req.body.created_by;
+
+    const LETTER_MAP = { A: 0, B: 1, C: 2, D: 3 };
+    const correctIdx = typeof correct_option === 'string'
+      ? (LETTER_MAP[correct_option.toUpperCase()] ?? 0)
+      : (correct_option || 0);
+
+    const contentJson = JSON.stringify({ en: question_text || content || '' });
+    const optionsArr = option_a
+      ? [option_a, option_b || '', option_c || '', option_d || '']
+      : (options || []);
+    const optionsJson = JSON.stringify({ en: optionsArr });
 
     const id = uuidv4();
     await query(
       `INSERT INTO questions (id, subject, difficulty, type, content_i18n, options_i18n, correct_option, explanation_i18n, created_by)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
-      [
-        id, subject, difficulty || 0.5, type,
-        JSON.stringify({ en: content }),
-        JSON.stringify({ en: options }),
-        correct_option || 0,
-        JSON.stringify({ en: explanation || '' }),
-        created_by
-      ]
+      [id, subject, difficulty || 0.5, 'mcq', contentJson, optionsJson, correctIdx,
+       JSON.stringify({ en: explanation || '' }), created_by]
     );
 
-    const result = await query('SELECT * FROM questions WHERE id = $1', [id]);
-    res.status(201).json(result.rows[0]);
+    const LETTERS = ['A', 'B', 'C', 'D'];
+    res.status(201).json({
+      id, subject, difficulty: difficulty || 0.5,
+      question_text: question_text || content || '',
+      option_a: optionsArr[0], option_b: optionsArr[1],
+      option_c: optionsArr[2], option_d: optionsArr[3],
+      correct_option: LETTERS[correctIdx],
+    });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Failed to create question' });

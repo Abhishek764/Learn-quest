@@ -5,12 +5,12 @@ const request = require('supertest');
 const app = require('../src/index');
 const { resetDb } = require('../src/db');
 
-beforeEach(() => {
-  resetDb();
+beforeEach(async () => {
+  await resetDb();
 });
 
-afterAll(() => {
-  resetDb();
+afterAll(async () => {
+  await resetDb();
 });
 
 describe('Auth Service', () => {

@@ -13,6 +13,33 @@ function generateInviteCode() {
   return code;
 }
 
+// GET /classes — list classes for the authenticated educator
+router.get('/', async (req, res) => {
+  try {
+    const educator_id = req.headers['x-user-id'];
+    if (!educator_id) return res.status(400).json({ error: 'User ID required' });
+    const result = await query(
+      'SELECT * FROM classes WHERE educator_id = $1 ORDER BY created_at DESC',
+      [educator_id]
+    );
+    res.json(result.rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to fetch classes' });
+  }
+});
+
+// GET /classes/:id
+router.get('/:id', async (req, res) => {
+  try {
+    const result = await query('SELECT * FROM classes WHERE id = $1', [req.params.id]);
+    if (result.rows.length === 0) return res.status(404).json({ error: 'Class not found' });
+    res.json(result.rows[0]);
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to fetch class' });
+  }
+});
+
 // POST /classes
 router.post('/', async (req, res) => {
   try {

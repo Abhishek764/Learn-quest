@@ -2,10 +2,10 @@ process.env.NODE_ENV = 'test';
 
 const request = require('supertest');
 const app = require('../src/index');
-const { resetDb } = require('../src/db');
+const { query, resetDb } = require('../src/db');
 
-beforeEach(() => resetDb());
-afterAll(() => resetDb());
+beforeEach(async () => { await resetDb(); });
+afterAll(async () => { await resetDb(); });
 
 describe('Game Service', () => {
   const userId = 'test-user-123';
@@ -45,15 +45,13 @@ describe('Game Service', () => {
     const qRes = await request(app).get(`/games/sessions/${sessionId}/next-question`);
     const question = qRes.body;
 
-    // Find correct option from db directly — we need to query
-    // Use the question's correct_option via the db
-    const { getDb } = require('../src/db');
-    const dbInstance = getDb();
-    const q = dbInstance.prepare('SELECT correct_option FROM questions WHERE id = ?').get(question.id);
+    // Fetch correct_option via query() instead of getDb()
+    const dbRes = await query('SELECT correct_option FROM questions WHERE id = $1', [question.id]);
+    const correctOption = dbRes.rows[0].correct_option;
 
     const res = await request(app)
       .post(`/games/sessions/${sessionId}/answer`)
-      .send({ question_id: question.id, answer: q.correct_option, response_time_sec: 3 });
+      .send({ question_id: question.id, answer: correctOption, response_time_sec: 3 });
 
     expect(res.status).toBe(200);
     expect(res.body.correct).toBe(true);
@@ -70,10 +68,9 @@ describe('Game Service', () => {
     const qRes = await request(app).get(`/games/sessions/${sessionId}/next-question`);
     const question = qRes.body;
 
-    const { getDb } = require('../src/db');
-    const dbInstance = getDb();
-    const q = dbInstance.prepare('SELECT correct_option FROM questions WHERE id = ?').get(question.id);
-    const wrongAnswer = (q.correct_option + 1) % 4;
+    const dbRes = await query('SELECT correct_option FROM questions WHERE id = $1', [question.id]);
+    const correctOption = dbRes.rows[0].correct_option;
+    const wrongAnswer = (correctOption + 1) % 4;
 
     const res = await request(app)
       .post(`/games/sessions/${sessionId}/answer`)

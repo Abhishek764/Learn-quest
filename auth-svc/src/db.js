@@ -1,24 +1,24 @@
-const path = require('path');
+let pool = null;
 
-let db;
-
-function getDb() {
-  if (db) return db;
+async function getPool() {
+  if (pool) return pool;
 
   if (process.env.NODE_ENV === 'test') {
-    const Database = require('better-sqlite3');
-    db = new Database(':memory:');
-    initSqlite(db);
+    const { newDb } = require('pg-mem');
+    const pgMem = newDb();
+    const { Pool } = pgMem.adapters.createPg();
+    pool = new Pool();
   } else {
     const { Pool } = require('pg');
-    db = new Pool({ connectionString: process.env.DATABASE_URL });
+    pool = new Pool({ connectionString: process.env.DATABASE_URL, connectionTimeoutMillis: 15000 });
   }
 
-  return db;
+  await initSchema(pool);
+  return pool;
 }
 
-function initSqlite(db) {
-  db.exec(`
+async function initSchema(p) {
+  await p.query(`
     CREATE TABLE IF NOT EXISTS users (
       id TEXT PRIMARY KEY,
       email TEXT UNIQUE NOT NULL,
@@ -31,54 +31,38 @@ function initSqlite(db) {
       level INTEGER DEFAULT 1,
       streak_days INTEGER DEFAULT 0,
       last_active TEXT,
-      created_at TEXT DEFAULT (datetime('now'))
-    );
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
 
+  await p.query(`
     CREATE TABLE IF NOT EXISTS refresh_tokens (
       id TEXT PRIMARY KEY,
       user_id TEXT NOT NULL,
       token TEXT NOT NULL,
       expires_at TEXT NOT NULL,
-      created_at TEXT DEFAULT (datetime('now'))
-    );
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
 
+  await p.query(`
     CREATE TABLE IF NOT EXISTS token_blacklist (
       token TEXT PRIMARY KEY,
-      created_at TEXT DEFAULT (datetime('now'))
-    );
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP
+    )
   `);
 }
 
 async function query(sql, params = []) {
-  const d = getDb();
+  const p = await getPool();
+  return p.query(sql, params);
+}
 
-  if (process.env.NODE_ENV === 'test') {
-    // SQLite sync adapter
-    if (sql.trim().toUpperCase().startsWith('SELECT') ||
-        sql.trim().toUpperCase().startsWith('WITH')) {
-      const stmt = d.prepare(convertToSqlite(sql));
-      const rows = stmt.all(...params);
-      return { rows };
-    } else {
-      const stmt = d.prepare(convertToSqlite(sql));
-      const info = stmt.run(...params);
-      return { rows: [], rowCount: info.changes };
-    }
-  } else {
-    return d.query(sql, params);
+async function resetDb() {
+  if (pool) {
+    try { await pool.end(); } catch {}
+    pool = null;
   }
 }
 
-function convertToSqlite(sql) {
-  // Convert $1, $2 placeholders to ?
-  return sql.replace(/\$\d+/g, '?');
-}
-
-function resetDb() {
-  if (process.env.NODE_ENV === 'test' && db) {
-    db.close();
-    db = null;
-  }
-}
-
-module.exports = { query, getDb, resetDb };
+module.exports = { query, resetDb };

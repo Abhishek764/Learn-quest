@@ -88,7 +88,7 @@ app.get('/analytics/user/:id/trends', async (req, res) => {
   try {
     const result = await query(
       `SELECT date, avg_engagement_score as engagement_score,
-       CASE WHEN total_answers > 0 THEN CAST(correct_answers AS REAL)/total_answers ELSE 0 END as accuracy,
+       CASE WHEN total_answers > 0 THEN CAST(correct_answers AS FLOAT)/total_answers ELSE 0 END as accuracy,
        sessions_count
        FROM daily_activity
        WHERE user_id = $1
@@ -243,6 +243,10 @@ app.use((err, req, res, next) => {
 if (require.main === module) {
   app.listen(PORT, () => {
     console.log(`analytics-svc running on port ${PORT}`);
+    if (process.env.NODE_ENV !== 'test') {
+      const { query } = require('./db');
+      query('SELECT 1').catch(() => {});
+    }
   });
 }
 

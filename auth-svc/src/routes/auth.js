@@ -141,7 +141,7 @@ router.post('/logout', async (req, res) => {
     if (authHeader && authHeader.startsWith('Bearer ')) {
       const token = authHeader.slice(7);
       await query(
-        'INSERT OR IGNORE INTO token_blacklist (token) VALUES ($1)',
+        'INSERT INTO token_blacklist (token) VALUES ($1) ON CONFLICT (token) DO NOTHING',
         [token]
       );
     }

@@ -23,6 +23,11 @@ app.use((err, req, res, next) => {
 if (require.main === module) {
   app.listen(PORT, () => {
     console.log(`auth-svc running on port ${PORT}`);
+    // pre-warm DB connection (Neon cold start)
+    if (process.env.NODE_ENV !== 'test') {
+      const { query } = require('./db');
+      query('SELECT 1').catch(() => {});
+    }
   });
 }
 

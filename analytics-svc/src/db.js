@@ -1,22 +1,19 @@
-let db;
+let pool = null;
 
-function getDb() {
-  if (db) return db;
+async function getPool() {
+  if (pool) return pool;
 
   if (process.env.NODE_ENV === 'test') {
-    const Database = require('better-sqlite3');
-    db = new Database(':memory:');
-    initSqlite(db);
+    const { newDb } = require('pg-mem');
+    const pgMem = newDb();
+    const { Pool } = pgMem.adapters.createPg();
+    pool = new Pool();
   } else {
     const { Pool } = require('pg');
-    db = new Pool({ connectionString: process.env.DATABASE_URL });
+    pool = new Pool({ connectionString: process.env.DATABASE_URL, connectionTimeoutMillis: 15000 });
   }
 
-  return db;
-}
-
-function initSqlite(sqliteDb) {
-  sqliteDb.exec(`
+  await pool.query(`
     CREATE TABLE IF NOT EXISTS daily_activity (
       id TEXT PRIMARY KEY,
       user_id TEXT NOT NULL,
@@ -25,8 +22,10 @@ function initSqlite(sqliteDb) {
       correct_answers INTEGER DEFAULT 0,
       total_answers INTEGER DEFAULT 0,
       avg_engagement_score REAL DEFAULT 0
-    );
+    )
+  `);
 
+  await pool.query(`
     CREATE TABLE IF NOT EXISTS aboa_logs (
       id TEXT PRIMARY KEY,
       session_id TEXT,
@@ -42,9 +41,11 @@ function initSqlite(sqliteDb) {
       guidance_level REAL,
       new_pacing REAL,
       subject TEXT,
-      created_at TEXT DEFAULT (datetime('now'))
-    );
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
 
+  await pool.query(`
     CREATE TABLE IF NOT EXISTS game_sessions (
       id TEXT PRIMARY KEY,
       user_id TEXT NOT NULL,
@@ -57,35 +58,22 @@ function initSqlite(sqliteDb) {
       xp_earned INTEGER DEFAULT 0,
       final_difficulty REAL,
       final_se REAL
-    );
+    )
   `);
+
+  return pool;
 }
 
 async function query(sql, params = []) {
-  const d = getDb();
+  const p = await getPool();
+  return p.query(sql, params);
+}
 
-  if (process.env.NODE_ENV === 'test') {
-    const converted = sql.replace(/\$\d+/g, '?');
-    const upper = sql.trim().toUpperCase();
-    if (upper.startsWith('SELECT') || upper.startsWith('WITH')) {
-      const stmt = d.prepare(converted);
-      const rows = stmt.all(...params);
-      return { rows };
-    } else {
-      const stmt = d.prepare(converted);
-      const info = stmt.run(...params);
-      return { rows: [], rowCount: info.changes };
-    }
-  } else {
-    return d.query(sql, params);
+async function resetDb() {
+  if (pool) {
+    try { await pool.end(); } catch {}
+    pool = null;
   }
 }
 
-function resetDb() {
-  if (process.env.NODE_ENV === 'test' && db) {
-    db.close();
-    db = null;
-  }
-}
-
-module.exports = { query, getDb, resetDb };
+module.exports = { query, resetDb };

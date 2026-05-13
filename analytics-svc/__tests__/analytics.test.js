@@ -8,7 +8,7 @@ const { v4: uuidv4 } = require('uuid');
 const userId = 'analytics-test-user';
 
 beforeEach(async () => {
-  resetDb();
+  await resetDb();
   // Seed some activity data
   const today = new Date().toISOString().split('T')[0];
   const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
@@ -39,7 +39,7 @@ beforeEach(async () => {
   );
 });
 
-afterAll(() => resetDb());
+afterAll(async () => { await resetDb(); });
 
 describe('Analytics Service', () => {
   test('GET /analytics/user/:id/heatmap returns 365 days of data', async () => {

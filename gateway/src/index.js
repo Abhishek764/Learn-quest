@@ -3,7 +3,7 @@ const express = require('express');
 const cors = require('cors');
 const rateLimit = require('express-rate-limit');
 const jwt = require('jsonwebtoken');
-const { createProxyMiddleware } = require('http-proxy-middleware');
+const axios = require('axios');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -24,7 +24,7 @@ app.use(express.json());
 
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 100,
+  max: 500,
   message: { error: 'Too many requests' }
 });
 app.use(limiter);
@@ -33,14 +33,7 @@ app.get('/health', (req, res) => {
   res.json({ status: 'ok', service: 'gateway' });
 });
 
-// Public routes — no JWT check
-const PUBLIC_PATHS = [
-  '/auth/register',
-  '/auth/login',
-  '/auth/google',
-  '/auth/refresh',
-  '/health'
-];
+const PUBLIC_PATHS = ['/auth/register', '/auth/login', '/auth/google', '/auth/refresh', '/health'];
 
 function authMiddleware(req, res, next) {
   const isPublic = PUBLIC_PATHS.some(p => req.path.startsWith(p));
@@ -57,29 +50,43 @@ function authMiddleware(req, res, next) {
     req.headers['x-user-id'] = decoded.sub;
     req.headers['x-user-role'] = decoded.role;
     next();
-  } catch (err) {
+  } catch {
     return res.status(401).json({ error: 'Invalid or expired token' });
   }
 }
 
 app.use(authMiddleware);
 
-const proxyOpts = (target) => ({
-  target,
-  changeOrigin: true,
-  on: {
-    error: (err, req, res) => {
-      res.status(502).json({ error: 'Service unavailable' });
+function makeProxy(targetBase) {
+  return async (req, res) => {
+    try {
+      const url = `${targetBase}${req.originalUrl}`;
+      const response = await axios({
+        method: req.method,
+        url,
+        headers: {
+          'content-type': req.headers['content-type'] || 'application/json',
+          'authorization': req.headers['authorization'] || '',
+          'x-user-id': req.headers['x-user-id'] || '',
+          'x-user-role': req.headers['x-user-role'] || '',
+        },
+        data: ['GET', 'DELETE', 'HEAD'].includes(req.method) ? undefined : req.body,
+        timeout: 30000,
+        validateStatus: () => true,
+      });
+      res.status(response.status).json(response.data);
+    } catch (err) {
+      res.status(502).json({ error: 'Service unavailable', detail: err.message });
     }
-  }
-});
+  };
+}
 
-app.use('/auth', createProxyMiddleware(proxyOpts(AUTH_URL)));
-app.use('/users', createProxyMiddleware(proxyOpts(USER_URL)));
-app.use('/classes', createProxyMiddleware(proxyOpts(USER_URL)));
-app.use('/games', createProxyMiddleware(proxyOpts(GAME_URL)));
-app.use('/aboa', createProxyMiddleware(proxyOpts(ABOA_URL)));
-app.use('/analytics', createProxyMiddleware(proxyOpts(ANALYTICS_URL)));
+app.use('/auth', makeProxy(AUTH_URL));
+app.use('/users', makeProxy(USER_URL));
+app.use('/classes', makeProxy(USER_URL));
+app.use('/games', makeProxy(GAME_URL));
+app.use('/aboa', makeProxy(ABOA_URL));
+app.use('/analytics', makeProxy(ANALYTICS_URL));
 
 if (require.main === module) {
   app.listen(PORT, () => {

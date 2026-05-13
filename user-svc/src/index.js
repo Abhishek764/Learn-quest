@@ -24,6 +24,10 @@ app.use((err, req, res, next) => {
 if (require.main === module) {
   app.listen(PORT, () => {
     console.log(`user-svc running on port ${PORT}`);
+    if (process.env.NODE_ENV !== 'test') {
+      const { query } = require('./db');
+      query('SELECT 1').catch(() => {});
+    }
   });
 }
 

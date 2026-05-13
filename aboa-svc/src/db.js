@@ -1,22 +1,19 @@
-let db;
+let pool = null;
 
-function getDb() {
-  if (db) return db;
+async function getPool() {
+  if (pool) return pool;
 
   if (process.env.NODE_ENV === 'test') {
-    const Database = require('better-sqlite3');
-    db = new Database(':memory:');
-    initSqlite(db);
+    const { newDb } = require('pg-mem');
+    const pgMem = newDb();
+    const { Pool } = pgMem.adapters.createPg();
+    pool = new Pool();
   } else {
     const { Pool } = require('pg');
-    db = new Pool({ connectionString: process.env.DATABASE_URL });
+    pool = new Pool({ connectionString: process.env.DATABASE_URL, connectionTimeoutMillis: 15000 });
   }
 
-  return db;
-}
-
-function initSqlite(db) {
-  db.exec(`
+  await pool.query(`
     CREATE TABLE IF NOT EXISTS aboa_logs (
       id TEXT PRIMARY KEY,
       session_id TEXT NOT NULL,
@@ -31,36 +28,23 @@ function initSqlite(db) {
       new_reward REAL,
       guidance_level REAL,
       new_pacing REAL,
-      created_at TEXT DEFAULT (datetime('now'))
-    );
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP
+    )
   `);
+
+  return pool;
 }
 
 async function query(sql, params = []) {
-  const d = getDb();
+  const p = await getPool();
+  return p.query(sql, params);
+}
 
-  if (process.env.NODE_ENV === 'test') {
-    const converted = sql.replace(/\$\d+/g, '?');
-    if (sql.trim().toUpperCase().startsWith('SELECT') ||
-        sql.trim().toUpperCase().startsWith('WITH')) {
-      const stmt = d.prepare(converted);
-      const rows = stmt.all(...params);
-      return { rows };
-    } else {
-      const stmt = d.prepare(converted);
-      const info = stmt.run(...params);
-      return { rows: [], rowCount: info.changes };
-    }
-  } else {
-    return d.query(sql, params);
+async function resetDb() {
+  if (pool) {
+    try { await pool.end(); } catch {}
+    pool = null;
   }
 }
 
-function resetDb() {
-  if (process.env.NODE_ENV === 'test' && db) {
-    db.close();
-    db = null;
-  }
-}
-
-module.exports = { query, getDb, resetDb };
+module.exports = { query, resetDb };

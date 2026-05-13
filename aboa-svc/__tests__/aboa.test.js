@@ -7,13 +7,8 @@ const {
   normalizeRt, normalizeAcc, normalizeDur, normalizeHint, normalizeTrend
 } = require('../src/aboa');
 
-beforeEach(() => {
-  resetDb();
-});
-
-afterAll(() => {
-  resetDb();
-});
+beforeEach(async () => { await resetDb(); });
+afterAll(async () => { await resetDb(); });
 
 describe('ABOA Service', () => {
   const basePayload = {
@@ -55,9 +50,7 @@ describe('ABOA Service', () => {
   });
 
   test('engagement_score is between 0 and 1', async () => {
-    const res = await request(app)
-      .post('/aboa/compute')
-      .send(basePayload);
+    const res = await request(app).post('/aboa/compute').send(basePayload);
 
     expect(res.status).toBe(200);
     expect(res.body.engagement_score).toBeGreaterThanOrEqual(0);
@@ -65,17 +58,17 @@ describe('ABOA Service', () => {
   });
 
   test('new_reward is higher when Se is low (low accuracy)', async () => {
-    const highEngagementRes = await request(app)
+    const highRes = await request(app)
       .post('/aboa/compute')
       .send({ ...basePayload, accuracy: 1.0, response_time: 1, engagement_trend: 1 });
 
-    resetDb();
+    await resetDb();
 
-    const lowEngagementRes = await request(app)
+    const lowRes = await request(app)
       .post('/aboa/compute')
       .send({ ...basePayload, accuracy: 0.0, response_time: 30, engagement_trend: -1 });
 
-    expect(lowEngagementRes.body.new_reward).toBeGreaterThan(highEngagementRes.body.new_reward);
+    expect(lowRes.body.new_reward).toBeGreaterThan(highRes.body.new_reward);
   });
 
   test('GET /aboa/learner/:id/history returns array of logs', async () => {
@@ -108,8 +101,7 @@ describe('ABOA Service', () => {
     });
 
     test('normalizeHint in [0,1]', () => {
-      const h = normalizeHint(0.3); // optimal
-      expect(h).toBe(1);
+      expect(normalizeHint(0.3)).toBe(1);
       expect(normalizeHint(0)).toBeGreaterThanOrEqual(0);
       expect(normalizeHint(1)).toBeGreaterThanOrEqual(0);
     });

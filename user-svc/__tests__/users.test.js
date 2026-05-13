@@ -5,7 +5,7 @@ const app = require('../src/index');
 const { query, resetDb } = require('../src/db');
 
 beforeEach(async () => {
-  resetDb();
+  await resetDb();
   await query(
     `INSERT INTO users (id, email, role, display_name, xp, level, streak_days) VALUES ($1, $2, $3, $4, $5, $6, $7)`,
     ['user-1', 'test@example.com', 'student', 'Test User', 50, 1, 3]
@@ -16,7 +16,7 @@ beforeEach(async () => {
   );
 });
 
-afterAll(() => resetDb());
+afterAll(async () => { await resetDb(); });
 
 describe('User Service', () => {
   test('GET /users/:id/profile returns user data', async () => {
