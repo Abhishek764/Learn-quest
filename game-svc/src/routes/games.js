@@ -104,7 +104,34 @@ router.get('/sessions/:id/next-question', async (req, res) => {
       return res.status(404).json({ error: 'No more questions available' });
     }
 
-    const q = candidates[Math.floor(Math.random() * candidates.length)];
+    // ── INTELLIGENT QUESTION SELECTION (ABOA) ──
+    let q;
+    try {
+      const ABOA_URL = process.env.ABOA_SVC_URL || 'http://localhost:3004';
+      const aboaRes = await axios.post(`${ABOA_URL}/aboa/recommend-question`, {
+        user_id: session.user_id,
+        session_id: req.params.id,
+        subject: subject || undefined
+      }, { timeout: 3000 });
+
+      const { scoring_context, context_summary } = aboaRes.data;
+      const qcMap = context_summary.question_concept_map || {};
+
+      // Score each candidate using ABOA factors
+      const aboa = require('../../../aboa-svc/src/aboa');
+      const scored = candidates.map(c => {
+        const conceptId = qcMap[c.id] || (JSON.parse(c.concept_tags || '[]'))[0] || null;
+        return aboa.scoreQuestion(
+          { ...c, concept_node_id: conceptId },
+          { ...scoring_context, answeredIds }
+        );
+      }).sort((a, b) => b.score - a.score);
+
+      q = candidates.find(c => c.id === scored[0].question_id) || candidates[0];
+    } catch (err) {
+      // Fallback to random if ABOA unavailable
+      q = candidates[Math.floor(Math.random() * candidates.length)];
+    }
 
     // parse JSON fields
     const content = typeof q.content_i18n === 'string' ? JSON.parse(q.content_i18n) : q.content_i18n;
@@ -171,7 +198,8 @@ router.post('/sessions/:id/answer', async (req, res) => {
     const correct = answers.filter(a => a.is_correct === 1 || a.is_correct === true).length;
     const accuracy = total > 0 ? correct / total : 0;
 
-    // call ABOA
+    // call ABOA with concept info for mastery updates
+    const conceptTags = JSON.parse(question.concept_tags || '[]');
     const aboaResult = await callAboa({
       user_id: session.user_id,
       session_id: req.params.id,
@@ -180,7 +208,11 @@ router.post('/sessions/:id/answer', async (req, res) => {
       session_duration: total * response_time_sec,
       hint_usage: hint_used ? 1 : 0,
       engagement_trend: 0,
-      current_difficulty: session.final_difficulty || 0.5
+      current_difficulty: session.final_difficulty || 0.5,
+      question_id: question_id,
+      concept_node_id: conceptTags[0] || null,
+      is_correct,
+      hint_used
     });
 
     // update session with new difficulty

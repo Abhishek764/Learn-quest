@@ -12,6 +12,7 @@ $RECYCLE.BIN/
 # ----------------------
 # Editor / IDE files
 # ----------------------
+./ai-context/
 .vscode/
 .idea/
 *.swp
