@@ -1,123 +1,110 @@
 import { useState, useEffect } from 'react'
 import Navbar from '../components/Navbar'
 import API from '../api'
-import {
-  BarChart, Bar, LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid
-} from 'recharts'
+import { BarChart2, TrendingUp, Target, Clock, Brain } from 'lucide-react'
+import { LineChart, Line, ResponsiveContainer, Tooltip, BarChart, Bar, XAxis, YAxis } from 'recharts'
 
 export default function Progress() {
   const user = JSON.parse(localStorage.getItem('user') || '{}')
-  const [trends, setTrends] = useState([])
   const [stats, setStats] = useState({})
-  const [sessions, setSessions] = useState([])
+  const [trends, setTrends] = useState([])
+  const [mastery, setMastery] = useState([])
 
   useEffect(() => {
-    if (!user.id) return
-    API.get(`/analytics/user/${user.id}/trends`).then(r => setTrends(r.data)).catch(() => {})
-    API.get(`/analytics/user/${user.id}/stats`).then(r => setStats(r.data)).catch(() => {})
-    API.get(`/games/sessions/user/${user.id}`).then(r => setSessions(r.data || [])).catch(() => {})
-  }, [user.id])
+    Promise.all([
+      API.get(`/analytics/user/${user.id}/stats`).catch(() => ({ data: {} })),
+      API.get(`/analytics/user/${user.id}/trends`).catch(() => ({ data: [] })),
+      API.get(`/aboa/learner/${user.id}/mastery`).catch(() => ({ data: [] })),
+    ]).then(([s, t, m]) => {
+      setStats(s.data)
+      setTrends(t.data)
+      setMastery(m.data)
+    })
+  }, [])
 
-  // Group accuracy by subject
-  const subjectAcc = sessions.reduce((acc, s) => {
-    if (!s.subject || !s.total_questions) return acc
-    if (!acc[s.subject]) acc[s.subject] = { correct: 0, total: 0 }
-    acc[s.subject].correct += s.correct_answers || 0
-    acc[s.subject].total += s.total_questions || 0
-    return acc
-  }, {})
-
-  const subjectData = Object.entries(subjectAcc).map(([subject, v]) => ({
-    subject: subject.charAt(0).toUpperCase() + subject.slice(1),
-    accuracy: Math.round((v.correct / v.total) * 100)
-  }))
+  const subjects = {}
+  mastery.forEach(m => {
+    if (!subjects[m.subject]) subjects[m.subject] = []
+    subjects[m.subject].push(m)
+  })
 
   return (
-    <div className="min-h-screen bg-gray-900">
+    <div className="page-wrapper">
       <Navbar />
-      <div className="max-w-6xl mx-auto px-4 py-8">
-        <h2 className="text-2xl font-bold text-white mb-6">Your Progress</h2>
+      <div className="page-content">
+        <div className="page-header">
+          <h1><BarChart2 size={24} style={{ display: 'inline', marginRight: 8 }} />Progress</h1>
+          <p>Your learning analytics powered by AI</p>
+        </div>
 
-        {/* Personal bests */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+        {/* Stats Row */}
+        <div className="grid-4" style={{ marginBottom: '1.5rem' }}>
           {[
-            { label: 'Total Sessions', value: stats.total_sessions || 0, color: 'text-green-400' },
-            { label: 'Avg Accuracy', value: `${Math.round((stats.avg_accuracy || 0) * 100)}%`, color: 'text-blue-400' },
-            { label: 'Best Streak', value: `${stats.best_streak || 0} days`, color: 'text-orange-400' },
-            { label: 'Fav Subject', value: stats.most_played_subject || 'None', color: 'text-purple-400' },
+            { label: 'Sessions', value: stats.total_sessions || 0, icon: <Clock size={18} />, color: 'var(--primary)' },
+            { label: 'Avg Accuracy', value: stats.avg_accuracy ? `${Math.round(stats.avg_accuracy * 100)}%` : '—', icon: <Target size={18} />, color: 'var(--secondary)' },
+            { label: 'Concepts Tracked', value: mastery.length, icon: <Brain size={18} />, color: 'var(--warning)' },
+            { label: 'Avg Engagement', value: stats.avg_engagement ? `${Math.round(stats.avg_engagement * 100)}%` : '—', icon: <TrendingUp size={18} />, color: 'var(--xp)' },
           ].map((s, i) => (
-            <div key={i} className="bg-gray-800 rounded-xl p-4 border border-gray-700">
-              <div className={`text-2xl font-bold mb-1 ${s.color}`}>{s.value}</div>
-              <div className="text-gray-400 text-sm">{s.label}</div>
+            <div key={i} className="card stat-card">
+              <div className="stat-icon" style={{ background: `${s.color}15`, color: s.color }}>{s.icon}</div>
+              <div className="stat-value">{s.value}</div>
+              <div className="stat-label">{s.label}</div>
             </div>
           ))}
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-          {/* Accuracy by subject */}
-          <div className="bg-gray-800 rounded-xl p-6 border border-gray-700">
-            <h3 className="text-white font-semibold mb-4">Accuracy by Subject</h3>
-            {subjectData.length > 0 ? (
-              <ResponsiveContainer width="100%" height={200}>
-                <BarChart data={subjectData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
-                  <XAxis dataKey="subject" tick={{ fill: '#9ca3af', fontSize: 12 }} />
-                  <YAxis domain={[0, 100]} tick={{ fill: '#9ca3af', fontSize: 12 }} />
-                  <Tooltip contentStyle={{ background: '#1f2937', border: 'none', color: '#fff' }} formatter={v => `${v}%`} />
-                  <Bar dataKey="accuracy" fill="#10b981" radius={[4,4,0,0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            ) : <div className="h-40 flex items-center justify-center text-gray-500">No data yet</div>}
-          </div>
-
-          {/* Engagement over 30 days */}
-          <div className="bg-gray-800 rounded-xl p-6 border border-gray-700">
-            <h3 className="text-white font-semibold mb-4">Engagement (30 days)</h3>
-            {trends.filter(t => t.engagement_score > 0).length > 0 ? (
-              <ResponsiveContainer width="100%" height={200}>
-                <LineChart data={trends}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
-                  <XAxis dataKey="date" tick={{ fill: '#9ca3af', fontSize: 10 }} tickFormatter={d => d.slice(5)} />
-                  <YAxis domain={[0, 1]} tick={{ fill: '#9ca3af', fontSize: 10 }} />
-                  <Tooltip contentStyle={{ background: '#1f2937', border: 'none', color: '#fff' }} />
-                  <Line type="monotone" dataKey="engagement_score" stroke="#8b5cf6" strokeWidth={2} dot={false} />
-                </LineChart>
-              </ResponsiveContainer>
-            ) : <div className="h-40 flex items-center justify-center text-gray-500">No data yet</div>}
-          </div>
-        </div>
-
-        {/* Session history */}
-        <div className="bg-gray-800 rounded-xl p-6 border border-gray-700">
-          <h3 className="text-white font-semibold mb-4">Session History</h3>
-          {sessions.length === 0 ? (
-            <p className="text-gray-500 text-sm">No sessions yet. Play a game!</p>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="text-gray-400 border-b border-gray-700">
-                    <th className="text-left py-2">Date</th>
-                    <th className="text-left py-2">Mode</th>
-                    <th className="text-left py-2">Subject</th>
-                    <th className="text-left py-2">Accuracy</th>
-                    <th className="text-left py-2">XP</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {sessions.slice(0, 20).map(s => (
-                    <tr key={s.id} className="border-b border-gray-700/50 text-gray-300 hover:bg-gray-700/30">
-                      <td className="py-2">{new Date(s.started_at).toLocaleDateString()}</td>
-                      <td className="py-2 capitalize">{(s.game_mode || '').replace(/_/g, ' ')}</td>
-                      <td className="py-2 capitalize">{s.subject}</td>
-                      <td className="py-2">{s.total_questions ? Math.round((s.correct_answers / s.total_questions) * 100) : 0}%</td>
-                      <td className="py-2 text-green-400">+{s.xp_earned || 0}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+        <div className="grid-2" style={{ marginBottom: '1.5rem' }}>
+          {/* Engagement Trend */}
+          <div className="card">
+            <h3 style={{ marginBottom: '1rem' }}>📈 Engagement Over Time</h3>
+            <div style={{ height: 200 }}>
+              {trends.length > 0 ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={trends}>
+                    <XAxis dataKey="date" tick={{ fill: '#55556a', fontSize: 10 }} axisLine={false} tickLine={false} />
+                    <YAxis tick={{ fill: '#55556a', fontSize: 10 }} axisLine={false} tickLine={false} domain={[0, 1]} />
+                    <Tooltip contentStyle={{ background: '#1a1a25', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8, color: '#f0f0f5', fontSize: '0.8rem' }} />
+                    <Line type="monotone" dataKey="engagement_score" stroke="#10b981" strokeWidth={2} dot={false} />
+                    <Line type="monotone" dataKey="accuracy" stroke="#8b5cf6" strokeWidth={2} dot={false} />
+                  </LineChart>
+                </ResponsiveContainer>
+              ) : (
+                <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)' }}>
+                  Play more to see trends
+                </div>
+              )}
             </div>
-          )}
+          </div>
+
+          {/* Mastery by Subject */}
+          <div className="card">
+            <h3 style={{ marginBottom: '1rem' }}>🧠 Concept Mastery</h3>
+            {Object.keys(subjects).length > 0 ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                {Object.entries(subjects).map(([subj, concepts]) => {
+                  const avg = concepts.reduce((s, c) => s + (c.mastery_score || 0), 0) / concepts.length
+                  return (
+                    <div key={subj}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', marginBottom: '0.25rem' }}>
+                        <span style={{ textTransform: 'capitalize', fontWeight: 600, color: 'var(--text-heading)' }}>{subj}</span>
+                        <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--primary)' }}>{Math.round(avg * 100)}%</span>
+                      </div>
+                      <div className="progress-bar">
+                        <div className="progress-fill" style={{ width: `${avg * 100}%` }} />
+                      </div>
+                      <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
+                        {concepts.length} concepts tracked
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            ) : (
+              <div style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '2rem' }}>
+                Play games to start tracking mastery
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>

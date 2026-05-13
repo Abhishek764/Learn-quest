@@ -9,6 +9,7 @@ import Leaderboard from './pages/Leaderboard'
 import Profile from './pages/Profile'
 import SkillTree from './pages/SkillTree'
 import Quests from './pages/Quests'
+import CrewQuest from './pages/CrewQuest'
 
 function PrivateRoute({ children }) {
   const token = localStorage.getItem('token')
@@ -24,6 +25,7 @@ export default function App() {
         <Route path="/dashboard" element={<PrivateRoute><Dashboard /></PrivateRoute>} />
         <Route path="/games" element={<PrivateRoute><Games /></PrivateRoute>} />
         <Route path="/games/play" element={<PrivateRoute><GamePlay /></PrivateRoute>} />
+        <Route path="/games/crew-quest" element={<PrivateRoute><CrewQuest /></PrivateRoute>} />
         <Route path="/progress" element={<PrivateRoute><Progress /></PrivateRoute>} />
         <Route path="/leaderboard" element={<PrivateRoute><Leaderboard /></PrivateRoute>} />
         <Route path="/profile" element={<PrivateRoute><Profile /></PrivateRoute>} />

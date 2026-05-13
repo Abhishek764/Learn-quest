@@ -13,6 +13,7 @@ app.get('/health', (req, res) => {
 });
 
 app.use('/games', require('./routes/games'));
+app.use('/games/crew-quest', require('./routes/crew-quest'));
 
 app.use((err, req, res, next) => {
   console.error(err.stack);

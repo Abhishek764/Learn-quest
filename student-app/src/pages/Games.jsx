@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import Navbar from '../components/Navbar'
-import { Zap, Brain, Keyboard, Clock, Shuffle, Crosshair, Lock, Star, ChevronRight } from 'lucide-react'
+import { Zap, Brain, Keyboard, Clock, Shuffle, Crosshair, Lock, Star, ChevronRight, Users } from 'lucide-react'
 
 const GAME_MODES = [
   {
@@ -83,6 +83,20 @@ const GAME_MODES = [
     locked: true,
     unlockText: 'Reach Level 5',
   },
+  {
+    id: 'crew_quest',
+    name: 'Crew Quest',
+    description: 'Among Us-style multiplayer! Join a room with friends, complete tasks by answering questions. Race to finish first!',
+    icon: <Users size={28} />,
+    color: '#C5FF4D',
+    bg: 'linear-gradient(135deg, rgba(197,255,77,0.15), rgba(197,255,77,0.05))',
+    border: 'rgba(197,255,77,0.3)',
+    tag: 'MULTIPLAYER',
+    difficulty: 'Adaptive',
+    time: '3-5 min',
+    locked: false,
+    isCrewQuest: true,
+  },
 ]
 
 const SUBJECTS = [
@@ -100,6 +114,7 @@ export default function Games() {
 
   function startGame(mode) {
     if (mode.locked) return
+    if (mode.isCrewQuest) return navigate('/games/crew-quest')
     navigate(`/games/play?mode=${mode.id}&subject=${subject === 'all' ? '' : subject}`)
   }
 
