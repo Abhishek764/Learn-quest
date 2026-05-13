@@ -1,50 +1,73 @@
 import { useState, useEffect } from 'react'
 import Navbar from '../components/Navbar'
 import API from '../api'
-import { Trophy } from 'lucide-react'
+import { Trophy, Zap, Medal } from 'lucide-react'
 
 export default function Leaderboard() {
   const user = JSON.parse(localStorage.getItem('user') || '{}')
   const [leaders, setLeaders] = useState([])
 
   useEffect(() => {
-    API.get('/users/leaderboard').then(r => setLeaders(r.data || [])).catch(() => {})
+    API.get('/users/leaderboard').then(r => setLeaders(r.data)).catch(() => {})
   }, [])
 
-  const rankColors = ['text-yellow-400', 'text-gray-400', 'text-orange-400']
+  const medals = ['🥇', '🥈', '🥉']
 
   return (
-    <div className="min-h-screen bg-gray-900">
+    <div className="page-wrapper">
       <Navbar />
-      <div className="max-w-3xl mx-auto px-4 py-8">
-        <div className="flex items-center gap-3 mb-6">
-          <Trophy size={24} className="text-yellow-400" />
-          <h2 className="text-2xl font-bold text-white">Global Leaderboard</h2>
+      <div className="page-content">
+        <div className="page-header">
+          <h1><Trophy size={24} style={{ display: 'inline', marginRight: 8 }} />Rankings</h1>
+          <p>Top players across all subjects</p>
         </div>
 
-        <div className="bg-gray-800 rounded-xl border border-gray-700 overflow-hidden">
-          {leaders.length === 0 ? (
-            <div className="p-8 text-center text-gray-500">No players yet. Be the first!</div>
-          ) : leaders.map((p, i) => (
-            <div
-              key={p.id}
-              className={`flex items-center gap-4 px-6 py-4 border-b border-gray-700/50 hover:bg-gray-700/30 ${p.id === user.id ? 'bg-green-900/20 border-l-2 border-l-green-400' : ''}`}
-            >
-              <div className={`w-8 text-center font-bold ${rankColors[i] || 'text-gray-500'}`}>
-                {i < 3 ? ['🥇','🥈','🥉'][i] : i + 1}
+        <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
+          {/* Header */}
+          <div style={{ display: 'flex', padding: '0.75rem 1.25rem', borderBottom: '1px solid var(--border)', fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)', fontWeight: 600 }}>
+            <span style={{ width: 50 }}>Rank</span>
+            <span style={{ flex: 1 }}>Player</span>
+            <span style={{ width: 80, textAlign: 'right' }}>Level</span>
+            <span style={{ width: 100, textAlign: 'right' }}>XP</span>
+          </div>
+
+          {leaders.map((p, i) => {
+            const isYou = p.id === user.id
+            const rank = i + 1
+            return (
+              <div key={p.id} className={`lb-row ${isYou ? 'is-you' : ''}`}
+                style={{ padding: '0.875rem 1.25rem', borderBottom: '1px solid var(--border)' }}>
+                <span className={`lb-rank ${rank <= 3 ? ['gold', 'silver', 'bronze'][rank - 1] : ''}`} style={{ width: 50 }}>
+                  {rank <= 3 ? medals[rank - 1] : rank}
+                </span>
+                <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                  <div style={{
+                    width: 36, height: 36, borderRadius: '50%',
+                    background: isYou ? 'var(--primary-dim)' : 'var(--bg-elevated)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontSize: '0.85rem', fontWeight: 700, color: isYou ? 'var(--primary)' : 'var(--text-muted)',
+                  }}>
+                    {(p.display_name || 'U')[0].toUpperCase()}
+                  </div>
+                  <div>
+                    <div style={{ fontWeight: 600, color: 'var(--text-heading)', fontSize: '0.9rem' }}>
+                      {p.display_name || 'Unknown'} {isYou && <span style={{ fontSize: '0.7rem', color: 'var(--primary)' }}>(you)</span>}
+                    </div>
+                  </div>
+                </div>
+                <span className="level-badge" style={{ width: 80, textAlign: 'center' }}>Lv.{p.level || 1}</span>
+                <span style={{ width: 100, textAlign: 'right', fontFamily: 'var(--font-mono)', fontWeight: 700, color: 'var(--xp)' }}>
+                  <Zap size={12} style={{ display: 'inline' }} /> {(p.xp || 0).toLocaleString()}
+                </span>
               </div>
-              <div className="w-10 h-10 rounded-full bg-gray-600 flex items-center justify-center text-white font-bold flex-shrink-0">
-                {p.avatar_url ? <img src={p.avatar_url} className="w-full h-full rounded-full object-cover" /> : (p.display_name || '?')[0].toUpperCase()}
-              </div>
-              <div className="flex-1">
-                <div className="text-white font-medium">{p.display_name || 'Unknown'} {p.id === user.id && <span className="text-xs text-green-400">(you)</span>}</div>
-                <div className="text-gray-400 text-xs">Level {p.level}</div>
-              </div>
-              <div className="text-right">
-                <div className="text-green-400 font-bold">{p.xp} XP</div>
-              </div>
+            )
+          })}
+
+          {leaders.length === 0 && (
+            <div style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-muted)' }}>
+              No players yet. Be the first!
             </div>
-          ))}
+          )}
         </div>
       </div>
     </div>

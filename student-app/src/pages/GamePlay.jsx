@@ -1,212 +1,523 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { Timer, Lightbulb, X } from 'lucide-react'
 import API from '../api'
-
-const TOTAL_QUESTIONS = 10
+import { Zap, Heart, Clock, X, CheckCircle, XCircle, ArrowRight, Sparkles, RotateCcw } from 'lucide-react'
 
 export default function GamePlay() {
   const navigate = useNavigate()
-  const [searchParams] = useSearchParams()
-  const mode = searchParams.get('mode') || 'lightning_quiz'
-  const subject = searchParams.get('subject') || 'general'
+  const [params] = useSearchParams()
+  const mode = params.get('mode') || 'lightning_quiz'
+  const subject = params.get('subject') || ''
 
+  const [phase, setPhase] = useState('loading') // loading, playing, result, gameover
   const [sessionId, setSessionId] = useState(null)
   const [question, setQuestion] = useState(null)
-  const [selected, setSelected] = useState(null)
-  const [result, setResult] = useState(null)
-  const [timeLeft, setTimeLeft] = useState(30)
-  const [hintUsed, setHintUsed] = useState(false)
   const [questionNum, setQuestionNum] = useState(0)
-  const [totalXp, setTotalXp] = useState(0)
-  const [correctCount, setCorrectCount] = useState(0)
-  const [gameOver, setGameOver] = useState(false)
-  const [loading, setLoading] = useState(true)
-  const [answering, setAnswering] = useState(false)
-  const [startTime, setStartTime] = useState(Date.now())
+  const [totalQ, setTotalQ] = useState(10)
+  const [score, setScore] = useState(0)
+  const [lives, setLives] = useState(3)
+  const [timer, setTimer] = useState(30)
+  const [timerMax, setTimerMax] = useState(30)
+  const [feedback, setFeedback] = useState(null) // { correct, explanation }
+  const [selectedAnswer, setSelectedAnswer] = useState(null)
+  const [xpGained, setXpGained] = useState(0)
+  const [streak, setStreak] = useState(0)
+  const [gameStats, setGameStats] = useState(null)
+  const timerRef = useRef(null)
+  const startTimeRef = useRef(null)
+
+  // Memory Match state
+  const [memCards, setMemCards] = useState([])
+  const [flipped, setFlipped] = useState([])
+  const [matched, setMatched] = useState([])
+  const [memMoves, setMemMoves] = useState(0)
+
+  // Word Scramble state
+  const [scrambled, setScrambled] = useState('')
+  const [typedAnswer, setTypedAnswer] = useState('')
+
+  // True/False state
+  const [tfStatement, setTfStatement] = useState('')
+  const [tfCorrectAnswer, setTfCorrectAnswer] = useState(true)
+
+  useEffect(() => { startSession() }, [])
 
   useEffect(() => {
-    startSession()
-  }, [])
-
-  async function startSession() {
-    try {
-      const res = await API.post('/games/sessions/start', { game_mode: mode, subject })
-      setSessionId(res.data.session_id)
-      await loadQuestion(res.data.session_id)
-    } catch (err) {
-      console.error(err)
-    }
-  }
-
-  async function loadQuestion(sid) {
-    setLoading(true)
-    setSelected(null)
-    setResult(null)
-    setHintUsed(false)
-    setTimeLeft(30)
-    setStartTime(Date.now())
-    try {
-      const res = await API.get(`/games/sessions/${sid || sessionId}/next-question`)
-      setQuestion(res.data)
-      setQuestionNum(res.data.question_number || questionNum + 1)
-    } catch {
-      // no more questions
-      await endSession(sid || sessionId)
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  useEffect(() => {
-    if (!question || selected !== null || gameOver) return
-    const timer = setInterval(() => {
-      setTimeLeft(t => {
+    if (phase !== 'playing' || mode === 'memory_match') return
+    timerRef.current = setInterval(() => {
+      setTimer(t => {
         if (t <= 1) {
-          clearInterval(timer)
-          handleAnswer(-1) // timeout
+          clearInterval(timerRef.current)
+          handleTimeout()
           return 0
         }
         return t - 1
       })
     }, 1000)
-    return () => clearInterval(timer)
-  }, [question, selected, gameOver])
+    return () => clearInterval(timerRef.current)
+  }, [phase, questionNum])
 
-  async function handleAnswer(answerIndex) {
-    if (answering || selected !== null) return
-    setAnswering(true)
-    setSelected(answerIndex)
+  async function startSession() {
+    try {
+      const res = await API.post('/games/sessions/start', { subject: subject || undefined })
+      setSessionId(res.data.session_id)
+      if (mode === 'memory_match') {
+        await loadMemoryCards(res.data.session_id)
+      } else {
+        await loadQuestion(res.data.session_id)
+      }
+    } catch (err) {
+      console.error(err)
+      navigate('/games')
+    }
+  }
 
-    const responseTime = (Date.now() - startTime) / 1000
+  async function loadQuestion(sid) {
+    try {
+      const res = await API.get(`/games/sessions/${sid}/next-question`)
+      const q = res.data
+      setQuestion(q)
+      setQuestionNum(q.question_number || questionNum + 1)
+      setTotalQ(q.total_questions || 10)
+      setSelectedAnswer(null)
+      setFeedback(null)
+      setTimer(mode === 'true_false_blitz' ? 10 : mode === 'speed_type' ? 20 : 30)
+      setTimerMax(mode === 'true_false_blitz' ? 10 : mode === 'speed_type' ? 20 : 30)
+      startTimeRef.current = Date.now()
+      setPhase('playing')
+
+      if (mode === 'word_scramble') {
+        const answer = (q.options[q.hint_eliminated ? q.hint_eliminated[0] === q.correct_option ? 1 : 0 : 0] || 'answer')
+        const correct = q.options[0] // We show the question, user types answer
+        setScrambled(shuffleWord(correct))
+        setTypedAnswer('')
+      }
+      if (mode === 'true_false_blitz') {
+        const isTrue = Math.random() > 0.4
+        if (isTrue) {
+          setTfStatement(`${q.content} → ${q.options[q.hint_eliminated ? findCorrectFromHints(q) : 0]}`)
+          setTfCorrectAnswer(true)
+        } else {
+          const wrongIdx = q.hint_eliminated ? q.hint_eliminated[0] : (q.hint_eliminated?.[0] ?? 0)
+          setTfStatement(`${q.content} → ${q.options[wrongIdx]}`)
+          setTfCorrectAnswer(false)
+        }
+      }
+    } catch {
+      await endSession(sid)
+    }
+  }
+
+  function findCorrectFromHints(q) {
+    const allIdx = [0, 1, 2, 3]
+    const notElim = allIdx.filter(i => !q.hint_eliminated.includes(i))
+    return notElim[0]
+  }
+
+  async function loadMemoryCards(sid) {
+    try {
+      const cards = []
+      for (let i = 0; i < 6; i++) {
+        const res = await API.get(`/games/sessions/${sid}/next-question`)
+        const q = res.data
+        const correct = q.options[findCorrectFromHints(q)]
+        cards.push(
+          { id: `q${i}`, type: 'question', text: q.content, pairId: i, qId: q.id, correctOption: findCorrectFromHints(q) },
+          { id: `a${i}`, type: 'answer', text: correct, pairId: i, qId: q.id, correctOption: findCorrectFromHints(q) }
+        )
+      }
+      // Shuffle
+      for (let i = cards.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [cards[i], cards[j]] = [cards[j], cards[i]]
+      }
+      setMemCards(cards)
+      setFlipped([])
+      setMatched([])
+      setMemMoves(0)
+      setPhase('playing')
+      startTimeRef.current = Date.now()
+    } catch {
+      navigate('/games')
+    }
+  }
+
+  function shuffleWord(word) {
+    const arr = word.split('')
+    for (let i = arr.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [arr[i], arr[j]] = [arr[j], arr[i]]
+    }
+    return arr.join('')
+  }
+
+  function handleTimeout() {
+    setLives(l => l - 1)
+    setFeedback({ correct: false, explanation: 'Time ran out!' })
+    setPhase('result')
+    if (lives <= 1) setTimeout(() => endSession(sessionId), 1500)
+    else setTimeout(() => loadQuestion(sessionId), 2000)
+  }
+
+  async function submitAnswer(answerIdx) {
+    if (feedback) return
+    clearInterval(timerRef.current)
+    setSelectedAnswer(answerIdx)
+    const responseTime = Math.round((Date.now() - startTimeRef.current) / 1000)
 
     try {
       const res = await API.post(`/games/sessions/${sessionId}/answer`, {
         question_id: question.id,
-        answer: answerIndex,
-        hint_used: hintUsed,
-        response_time_sec: responseTime
+        answer: answerIdx,
+        response_time_sec: responseTime,
+        hint_used: false,
       })
-      setResult(res.data)
-      if (res.data.correct) setCorrectCount(c => c + 1)
-      setTotalXp(xp => xp + (res.data.xp_gained || 0))
 
-      if (questionNum >= TOTAL_QUESTIONS) {
-        setTimeout(() => endSession(sessionId), 1500)
+      const isCorrect = res.data.correct
+      setFeedback({
+        correct: isCorrect,
+        explanation: res.data.explanation || '',
+      })
+
+      if (isCorrect) {
+        setScore(s => s + Math.round(res.data.xp_gained || 10))
+        setXpGained(x => x + (res.data.xp_gained || 10))
+        setStreak(s => s + 1)
       } else {
-        setTimeout(() => {
-          setAnswering(false)
-          loadQuestion(sessionId)
-        }, 1500)
+        setLives(l => l - 1)
+        setStreak(0)
+      }
+
+      setPhase('result')
+
+      if (!isCorrect && lives <= 1) {
+        setTimeout(() => endSession(sessionId), 2000)
+      } else if (questionNum >= totalQ) {
+        setTimeout(() => endSession(sessionId), 2000)
+      } else {
+        setTimeout(() => loadQuestion(sessionId), 2000)
       }
     } catch (err) {
-      setAnswering(false)
+      console.error(err)
+    }
+  }
+
+  async function submitTrueFalse(answer) {
+    if (feedback) return
+    clearInterval(timerRef.current)
+    const isCorrect = answer === tfCorrectAnswer
+    const responseTime = Math.round((Date.now() - startTimeRef.current) / 1000)
+
+    try {
+      await API.post(`/games/sessions/${sessionId}/answer`, {
+        question_id: question.id,
+        answer: isCorrect ? findCorrectFromHints(question) : question.hint_eliminated?.[0] || 0,
+        response_time_sec: responseTime,
+        hint_used: false,
+      })
+    } catch {}
+
+    setFeedback({ correct: isCorrect, explanation: isCorrect ? 'Correct!' : 'Wrong!' })
+    if (isCorrect) { setScore(s => s + 15); setXpGained(x => x + 15); setStreak(s => s + 1) }
+    else { setLives(l => l - 1); setStreak(0) }
+    setPhase('result')
+
+    if (!isCorrect && lives <= 1) setTimeout(() => endSession(sessionId), 1500)
+    else if (questionNum >= totalQ) setTimeout(() => endSession(sessionId), 1500)
+    else setTimeout(() => loadQuestion(sessionId), 1500)
+  }
+
+  async function submitTypedAnswer() {
+    if (feedback) return
+    clearInterval(timerRef.current)
+    const responseTime = Math.round((Date.now() - startTimeRef.current) / 1000)
+    // Check if typed answer matches any option
+    const matchIdx = question.options.findIndex(o => o.toLowerCase().trim() === typedAnswer.toLowerCase().trim())
+    const correctIdx = findCorrectFromHints(question)
+    const isCorrect = matchIdx === correctIdx
+
+    try {
+      await API.post(`/games/sessions/${sessionId}/answer`, {
+        question_id: question.id,
+        answer: matchIdx >= 0 ? matchIdx : 99,
+        response_time_sec: responseTime,
+      })
+    } catch {}
+
+    setFeedback({ correct: isCorrect, explanation: isCorrect ? 'Perfect!' : `Answer: ${question.options[correctIdx]}` })
+    if (isCorrect) { setScore(s => s + 20); setXpGained(x => x + 20); setStreak(s => s + 1) }
+    else { setLives(l => l - 1); setStreak(0) }
+    setPhase('result')
+
+    if (!isCorrect && lives <= 1) setTimeout(() => endSession(sessionId), 1500)
+    else if (questionNum >= totalQ) setTimeout(() => endSession(sessionId), 1500)
+    else setTimeout(() => loadQuestion(sessionId), 1500)
+  }
+
+  function flipMemCard(idx) {
+    if (flipped.length === 2 || matched.includes(memCards[idx].pairId) || flipped.includes(idx)) return
+    const newFlipped = [...flipped, idx]
+    setFlipped(newFlipped)
+
+    if (newFlipped.length === 2) {
+      setMemMoves(m => m + 1)
+      const [a, b] = newFlipped
+      if (memCards[a].pairId === memCards[b].pairId && memCards[a].type !== memCards[b].type) {
+        setMatched(m => [...m, memCards[a].pairId])
+        setScore(s => s + 25)
+        setXpGained(x => x + 25)
+        setTimeout(() => setFlipped([]), 500)
+        if (matched.length + 1 >= 6) setTimeout(() => endSession(sessionId), 1500)
+      } else {
+        setTimeout(() => setFlipped([]), 1000)
+      }
     }
   }
 
   async function endSession(sid) {
     try {
-      await API.post(`/games/sessions/${sid}/end`)
+      const res = await API.post(`/games/sessions/${sid}/end`)
+      setGameStats(res.data)
+      // Refresh user data
+      const userRes = await API.get(`/users/${JSON.parse(localStorage.getItem('user') || '{}').id}/profile`)
+      if (userRes.data) localStorage.setItem('user', JSON.stringify(userRes.data))
     } catch {}
-    setGameOver(true)
+    setPhase('gameover')
   }
 
-  function optionStyle(idx) {
-    if (selected === null) return 'bg-gray-700 hover:bg-gray-600 border-gray-600 text-white'
-    if (result && idx === result.correct_option) return 'bg-green-700 border-green-500 text-white'
-    if (idx === selected && result && !result.correct) return 'bg-red-800 border-red-500 text-white'
-    return 'bg-gray-700 border-gray-600 text-gray-400'
+  const modeConfig = {
+    lightning_quiz: { color: '#10b981', name: 'Lightning Quiz', icon: '⚡' },
+    memory_match: { color: '#8b5cf6', name: 'Memory Match', icon: '🧠' },
+    speed_type: { color: '#f59e0b', name: 'Speed Type', icon: '⌨️' },
+    true_false_blitz: { color: '#ec4899', name: 'True/False Blitz', icon: '🎯' },
+    word_scramble: { color: '#06b6d4', name: 'Word Scramble', icon: '🔀' },
+    boss_battle: { color: '#ef4444', name: 'Boss Battle', icon: '⚔️' },
   }
+  const mc = modeConfig[mode] || modeConfig.lightning_quiz
 
-  if (gameOver) {
-    const accuracy = questionNum > 0 ? Math.round((correctCount / questionNum) * 100) : 0
+  // ── GAME OVER SCREEN ──
+  if (phase === 'gameover') {
+    const accuracy = gameStats ? Math.round((gameStats.correct_answers / Math.max(gameStats.total_questions, 1)) * 100) : 0
     return (
-      <div className="min-h-screen bg-gray-900 flex items-center justify-center p-4">
-        <div className="bg-gray-800 rounded-2xl p-8 max-w-md w-full text-center border border-gray-700">
-          <div className="text-6xl mb-4">🎉</div>
-          <h2 className="text-2xl font-bold text-white mb-2">Game Over!</h2>
-          <div className="grid grid-cols-3 gap-4 my-6">
-            <div className="bg-gray-700 rounded-xl p-3"><div className="text-green-400 text-xl font-bold">{correctCount}/{questionNum}</div><div className="text-gray-400 text-xs">Score</div></div>
-            <div className="bg-gray-700 rounded-xl p-3"><div className="text-blue-400 text-xl font-bold">{accuracy}%</div><div className="text-gray-400 text-xs">Accuracy</div></div>
-            <div className="bg-gray-700 rounded-xl p-3"><div className="text-yellow-400 text-xl font-bold">+{totalXp}</div><div className="text-gray-400 text-xs">XP</div></div>
+      <div style={{ minHeight: '100vh', background: 'var(--bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '2rem' }}>
+        <div className="card" style={{ maxWidth: 480, width: '100%', textAlign: 'center', padding: '2.5rem', animation: 'fadeSlideUp 0.5s ease both' }}>
+          <div style={{ fontSize: '4rem', marginBottom: '1rem' }}>{accuracy >= 70 ? '🏆' : accuracy >= 40 ? '💪' : '📚'}</div>
+          <h1 style={{ marginBottom: '0.25rem' }}>{accuracy >= 70 ? 'Amazing!' : accuracy >= 40 ? 'Good Try!' : 'Keep Practicing!'}</h1>
+          <p style={{ color: 'var(--text-muted)', marginBottom: '2rem' }}>{mc.name} Complete</p>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1rem', marginBottom: '2rem' }}>
+            <div className="stat-card card" style={{ padding: '1rem' }}>
+              <div className="stat-value" style={{ color: 'var(--primary)' }}>{accuracy}%</div>
+              <div className="stat-label">Accuracy</div>
+            </div>
+            <div className="stat-card card" style={{ padding: '1rem' }}>
+              <div className="stat-value" style={{ color: 'var(--xp)' }}>+{xpGained}</div>
+              <div className="stat-label">XP Earned</div>
+            </div>
+            <div className="stat-card card" style={{ padding: '1rem' }}>
+              <div className="stat-value" style={{ color: 'var(--secondary)' }}>{gameStats?.correct_answers || 0}/{gameStats?.total_questions || 0}</div>
+              <div className="stat-label">Correct</div>
+            </div>
           </div>
-          <div className="flex gap-3">
-            <button onClick={() => window.location.reload()} className="flex-1 bg-green-500 hover:bg-green-400 text-white py-2.5 rounded-xl font-semibold">Play Again</button>
-            <button onClick={() => navigate('/games')} className="flex-1 bg-gray-700 hover:bg-gray-600 text-white py-2.5 rounded-xl font-semibold">Back to Lobby</button>
+
+          <div style={{ display: 'flex', gap: '0.75rem' }}>
+            <button className="btn btn-primary btn-lg" style={{ flex: 1 }} onClick={() => { setPhase('loading'); setScore(0); setLives(3); setXpGained(0); setStreak(0); setQuestionNum(0); startSession() }}>
+              <RotateCcw size={18} /> Play Again
+            </button>
+            <button className="btn btn-secondary btn-lg" style={{ flex: 1 }} onClick={() => navigate('/games')}>
+              Back to Arcade
+            </button>
           </div>
         </div>
       </div>
     )
   }
 
-  if (loading) {
-    return <div className="min-h-screen bg-gray-900 flex items-center justify-center"><div className="text-green-400 text-xl">Loading question...</div></div>
+  // ── LOADING ──
+  if (phase === 'loading') {
+    return (
+      <div style={{ minHeight: '100vh', background: 'var(--bg)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ textAlign: 'center' }}>
+          <div className="loading-spinner" style={{ margin: '0 auto 1rem', width: 48, height: 48 }} />
+          <p style={{ color: 'var(--text-muted)' }}>AI is preparing your challenge...</p>
+        </div>
+      </div>
+    )
   }
 
-  const options = question?.options || []
-  const timerPct = (timeLeft / 30) * 100
+  // ── MEMORY MATCH MODE ──
+  if (mode === 'memory_match') {
+    return (
+      <div style={{ minHeight: '100vh', background: 'var(--bg)', padding: '1.5rem' }}>
+        <div style={{ maxWidth: 700, margin: '0 auto' }}>
+          {/* HUD */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+            <button className="btn btn-secondary btn-sm" onClick={() => navigate('/games')}><X size={16} /> Quit</button>
+            <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+              <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--text-muted)', fontSize: '0.85rem' }}>Moves: {memMoves}</span>
+              <span className="badge badge-primary">{matched.length}/6 Matched</span>
+            </div>
+          </div>
+          <h2 style={{ textAlign: 'center', marginBottom: '1.5rem', color: mc.color }}>{mc.icon} {mc.name}</h2>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '0.75rem' }}>
+            {memCards.map((card, i) => {
+              const isFlipped = flipped.includes(i) || matched.includes(card.pairId)
+              const isMatched = matched.includes(card.pairId)
+              return (
+                <div key={i} onClick={() => flipMemCard(i)}
+                  style={{
+                    aspectRatio: '1', borderRadius: 'var(--radius)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    padding: '0.75rem', textAlign: 'center',
+                    fontSize: card.type === 'question' ? '0.7rem' : '0.8rem',
+                    fontWeight: card.type === 'answer' ? 600 : 400,
+                    cursor: isFlipped ? 'default' : 'pointer',
+                    transition: 'all 0.3s',
+                    transform: isFlipped ? 'rotateY(0deg)' : 'rotateY(0deg)',
+                    background: isMatched ? 'var(--primary-dim)' : isFlipped ? 'var(--bg-elevated)' : 'var(--bg-surface)',
+                    border: `2px solid ${isMatched ? 'var(--primary)' : isFlipped ? 'var(--border-hover)' : 'var(--border)'}`,
+                    color: isFlipped ? 'var(--text-heading)' : 'var(--text-muted)',
+                    boxShadow: isMatched ? '0 0 15px var(--primary-glow)' : 'none',
+                  }}>
+                  {isFlipped ? card.text : '?'}
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // ── MAIN GAME HUD ──
+  const timerPct = (timer / timerMax) * 100
+  const timerColor = timer <= 5 ? 'var(--danger)' : timer <= 10 ? 'var(--warning)' : 'var(--primary)'
 
   return (
-    <div className="min-h-screen bg-gray-900 flex items-center justify-center p-4">
-      <div className="w-full max-w-2xl">
-        {/* Header */}
-        <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center gap-3">
-            <span className="text-gray-400 text-sm">{questionNum}/{TOTAL_QUESTIONS}</span>
-            <div className="flex items-center gap-1.5 text-yellow-400 font-semibold"><span>⚡</span>{totalXp} XP</div>
+    <div style={{ minHeight: '100vh', background: 'var(--bg)', padding: '1.5rem' }}>
+      <div style={{ maxWidth: 640, margin: '0 auto' }}>
+        {/* Top HUD */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+          <button className="btn btn-secondary btn-sm" onClick={() => navigate('/games')}><X size={16} /> Quit</button>
+          <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+            <span className="xp-badge"><Zap size={12} /> {score}</span>
+            {streak > 1 && <span className="streak-badge" style={{ animation: 'correctPulse 0.5s ease' }}>🔥 {streak}x</span>}
+            <div style={{ display: 'flex', gap: '0.25rem' }}>
+              {Array(3).fill(0).map((_, i) => (
+                <Heart key={i} size={16} fill={i < lives ? '#ef4444' : 'none'} color={i < lives ? '#ef4444' : 'var(--text-muted)'} />
+              ))}
+            </div>
           </div>
-          <div className={`flex items-center gap-2 font-mono text-lg font-bold ${timeLeft <= 10 ? 'text-red-400' : 'text-white'}`}>
-            <Timer size={18} />{timeLeft}s
-          </div>
-          <button onClick={() => navigate('/games')} className="text-gray-500 hover:text-gray-300"><X size={20} /></button>
         </div>
 
-        {/* Timer bar */}
-        <div className="w-full bg-gray-700 rounded-full h-2 mb-6">
-          <div className={`h-2 rounded-full transition-all ${timeLeft <= 10 ? 'bg-red-400' : 'bg-green-400'}`} style={{ width: `${timerPct}%` }} />
+        {/* Progress */}
+        <div style={{ marginBottom: '1.5rem' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '0.375rem' }}>
+            <span>{mc.icon} {mc.name}</span>
+            <span style={{ fontFamily: 'var(--font-mono)' }}>{questionNum}/{totalQ}</span>
+          </div>
+          <div className="progress-bar" style={{ height: 4 }}>
+            <div className="progress-fill" style={{ width: `${(questionNum / totalQ) * 100}%`, background: mc.color }} />
+          </div>
+        </div>
+
+        {/* Timer */}
+        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '2rem' }}>
+          <div style={{
+            width: 64, height: 64, borderRadius: '50%',
+            border: `3px solid ${timerColor}`,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontFamily: 'var(--font-mono)', fontSize: '1.5rem', fontWeight: 700,
+            color: timerColor,
+            boxShadow: timer <= 5 ? `0 0 20px ${timerColor}40` : 'none',
+            animation: timer <= 5 ? 'correctPulse 0.5s ease infinite' : 'none',
+          }}>
+            {timer}
+          </div>
         </div>
 
         {/* Question */}
-        <div className="bg-gray-800 rounded-2xl p-6 mb-4 border border-gray-700">
-          <div className="flex items-center gap-2 mb-3">
-            <span className="text-xs px-2 py-1 bg-gray-700 text-gray-300 rounded-full capitalize">{question?.subject}</span>
-            <span className="text-xs px-2 py-1 bg-gray-700 text-gray-300 rounded-full">Difficulty: {Math.round((question?.difficulty || 0.5) * 100)}%</span>
-          </div>
-          <p className="text-white text-lg font-medium">{question?.content}</p>
+        <div className="card" style={{ marginBottom: '1.5rem', textAlign: 'center', padding: '2rem' }}>
+          {question?.subject && <span className="badge badge-secondary" style={{ marginBottom: '0.75rem' }}>{question.subject}</span>}
+          <h2 style={{ fontSize: '1.25rem', lineHeight: 1.5 }}>{question?.content}</h2>
         </div>
 
-        {/* Options */}
-        <div className="grid grid-cols-2 gap-3 mb-4">
-          {options.map((opt, idx) => (
-            <button
-              key={idx}
-              onClick={() => handleAnswer(idx)}
-              disabled={selected !== null}
-              className={`p-4 rounded-xl border-2 text-left font-medium transition-all ${optionStyle(idx)}`}
-            >
-              <span className="text-gray-400 text-sm mr-2">{String.fromCharCode(65 + idx)}.</span>
-              {opt}
-            </button>
-          ))}
-        </div>
-
-        {/* Hint + explanation */}
-        <div className="flex items-center justify-between">
-          {!hintUsed && selected === null && (
-            <button
-              onClick={() => setHintUsed(true)}
-              className="flex items-center gap-1.5 text-yellow-400 text-sm hover:text-yellow-300"
-            >
-              <Lightbulb size={16} /> Use Hint (-5 XP)
-            </button>
-          )}
-          {hintUsed && <div className="text-yellow-400 text-sm flex items-center gap-1"><Lightbulb size={14} /> Hint active</div>}
-          {result && (
-            <div className={`text-sm px-3 py-1.5 rounded-lg ${result.correct ? 'bg-green-900/50 text-green-300' : 'bg-red-900/50 text-red-300'}`}>
-              {result.correct ? `✓ Correct! +${result.xp_gained} XP` : `✗ ${result.explanation || 'Wrong answer'}`}
+        {/* TRUE/FALSE MODE */}
+        {mode === 'true_false_blitz' && (
+          <div style={{ marginBottom: '1.5rem' }}>
+            <div className="card" style={{ textAlign: 'center', padding: '1.5rem', marginBottom: '1rem' }}>
+              <p style={{ fontSize: '1.1rem', color: 'var(--text-heading)' }}>{tfStatement}</p>
             </div>
-          )}
-        </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+              <button className={`option-btn ${feedback?.correct === true && true === tfCorrectAnswer ? 'correct' : feedback?.correct === false && true !== tfCorrectAnswer ? '' : ''}`}
+                onClick={() => submitTrueFalse(true)} disabled={!!feedback}
+                style={{ justifyContent: 'center', background: feedback && tfCorrectAnswer ? 'var(--primary-dim)' : undefined, borderColor: feedback && tfCorrectAnswer ? 'var(--primary)' : undefined }}>
+                <CheckCircle size={20} /> TRUE
+              </button>
+              <button className={`option-btn`}
+                onClick={() => submitTrueFalse(false)} disabled={!!feedback}
+                style={{ justifyContent: 'center', background: feedback && !tfCorrectAnswer ? 'var(--primary-dim)' : undefined, borderColor: feedback && !tfCorrectAnswer ? 'var(--primary)' : undefined }}>
+                <XCircle size={20} /> FALSE
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* SPEED TYPE / WORD SCRAMBLE */}
+        {(mode === 'speed_type' || mode === 'word_scramble') && (
+          <div style={{ marginBottom: '1.5rem' }}>
+            {mode === 'word_scramble' && (
+              <div style={{ textAlign: 'center', marginBottom: '1rem' }}>
+                <p style={{ color: 'var(--text-muted)', fontSize: '0.8rem', marginBottom: '0.5rem' }}>Unscramble:</p>
+                <div style={{ fontFamily: 'var(--font-mono)', fontSize: '2rem', fontWeight: 700, letterSpacing: '0.2em', color: mc.color }}>
+                  {scrambled}
+                </div>
+              </div>
+            )}
+            <div style={{ display: 'flex', gap: '0.75rem' }}>
+              <input className="input" value={typedAnswer} onChange={e => setTypedAnswer(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && submitTypedAnswer()}
+                placeholder="Type your answer..." disabled={!!feedback}
+                style={{ fontSize: '1.1rem', textAlign: 'center' }} autoFocus />
+              <button className="btn btn-primary" onClick={submitTypedAnswer} disabled={!!feedback || !typedAnswer}>
+                <ArrowRight size={20} />
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* MCQ OPTIONS (Lightning Quiz / Boss Battle) */}
+        {(mode === 'lightning_quiz' || mode === 'boss_battle') && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.625rem' }}>
+            {(question?.options || []).map((opt, i) => {
+              const labels = ['A', 'B', 'C', 'D']
+              let cls = ''
+              if (feedback && selectedAnswer === i) cls = feedback.correct ? 'correct' : 'wrong'
+              if (feedback && !feedback.correct && i === findCorrectFromHints(question)) cls = 'correct'
+
+              return (
+                <button key={i} className={`option-btn ${cls}`} onClick={() => submitAnswer(i)} disabled={!!feedback}>
+                  <span className="option-label">{labels[i]}</span>
+                  {opt}
+                </button>
+              )
+            })}
+          </div>
+        )}
+
+        {/* Feedback Toast */}
+        {feedback && (
+          <div className="card" style={{
+            marginTop: '1.25rem', textAlign: 'center', padding: '1rem',
+            background: feedback.correct ? 'var(--primary-dim)' : 'var(--danger-dim)',
+            borderColor: feedback.correct ? 'rgba(16,185,129,0.3)' : 'rgba(239,68,68,0.3)',
+            animation: 'fadeSlideUp 0.3s ease both',
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', fontWeight: 600, color: feedback.correct ? 'var(--primary)' : 'var(--danger)' }}>
+              {feedback.correct ? <><Sparkles size={18} /> Correct! +{streak > 1 ? `${streak}x bonus` : 'XP'}</> : <><XCircle size={18} /> {feedback.explanation}</>}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   )
