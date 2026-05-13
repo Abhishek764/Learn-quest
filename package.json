@@ -1,0 +1,24 @@
+{
+  "name": "learnquest",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": [
+    "gateway",
+    "auth-svc",
+    "user-svc",
+    "game-svc",
+    "aboa-svc",
+    "analytics-svc",
+    "rt-svc",
+    "student-app",
+    "educator-app"
+  ],
+  "scripts": {
+    "dev": "concurrently \"npm run dev --workspace=gateway\" \"npm run dev --workspace=auth-svc\" \"npm run dev --workspace=user-svc\" \"npm run dev --workspace=game-svc\" \"npm run dev --workspace=aboa-svc\" \"npm run dev --workspace=analytics-svc\" \"npm run dev --workspace=rt-svc\" \"npm run dev --workspace=student-app\" \"npm run dev --workspace=educator-app\"",
+    "test": "npm run test --workspace=auth-svc && npm run test --workspace=user-svc && npm run test --workspace=game-svc && npm run test --workspace=aboa-svc && npm run test --workspace=analytics-svc",
+    "test:fix": "npm run test 2>&1"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}
