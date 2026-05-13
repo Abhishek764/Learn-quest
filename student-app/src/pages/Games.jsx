@@ -1,60 +1,189 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Zap, BookOpen, Map, Swords, Clock, Star } from 'lucide-react'
 import Navbar from '../components/Navbar'
+import { Zap, Brain, Keyboard, Clock, Shuffle, Crosshair, Lock, Star, ChevronRight } from 'lucide-react'
 
 const GAME_MODES = [
-  { id: 'lightning_quiz', name: 'Lightning Quiz', desc: 'Answer fast! 30 seconds per question.', icon: <Zap size={32} className="text-yellow-400" />, color: 'from-yellow-900 to-gray-800' },
-  { id: 'word_builder', name: 'Word Builder', desc: 'Build vocabulary with fill-in-the-blank.', icon: <BookOpen size={32} className="text-blue-400" />, color: 'from-blue-900 to-gray-800' },
-  { id: 'quest_map', name: 'Quest Map', desc: 'Journey through levels of increasing difficulty.', icon: <Map size={32} className="text-green-400" />, color: 'from-green-900 to-gray-800' },
-  { id: 'battle_mode', name: 'Battle Mode', desc: 'Compete against top scores in real time.', icon: <Swords size={32} className="text-red-400" />, color: 'from-red-900 to-gray-800' },
-  { id: 'time_attack', name: 'Time Attack', desc: 'How many correct in 2 minutes?', icon: <Clock size={32} className="text-purple-400" />, color: 'from-purple-900 to-gray-800' },
-  { id: 'daily_challenge', name: 'Daily Challenge', desc: 'One unique challenge per day for bonus XP.', icon: <Star size={32} className="text-orange-400" />, color: 'from-orange-900 to-gray-800' },
+  {
+    id: 'lightning_quiz',
+    name: 'Lightning Quiz',
+    description: 'Answer 10 AI-selected questions as fast as you can. Difficulty adapts in real-time.',
+    icon: <Zap size={28} />,
+    color: '#10b981',
+    bg: 'linear-gradient(135deg, rgba(16,185,129,0.15), rgba(16,185,129,0.05))',
+    border: 'rgba(16,185,129,0.25)',
+    tag: 'CLASSIC',
+    difficulty: 'Adaptive',
+    time: '3-5 min',
+    locked: false,
+  },
+  {
+    id: 'memory_match',
+    name: 'Memory Match',
+    description: 'Flip cards to match questions with their correct answers. Tests recall & memory.',
+    icon: <Brain size={28} />,
+    color: '#8b5cf6',
+    bg: 'linear-gradient(135deg, rgba(139,92,246,0.15), rgba(139,92,246,0.05))',
+    border: 'rgba(139,92,246,0.25)',
+    tag: 'MEMORY',
+    difficulty: 'Medium',
+    time: '2-4 min',
+    locked: false,
+  },
+  {
+    id: 'speed_type',
+    name: 'Speed Type',
+    description: 'Type the correct answer before time runs out. Tests knowledge + typing speed.',
+    icon: <Keyboard size={28} />,
+    color: '#f59e0b',
+    bg: 'linear-gradient(135deg, rgba(245,158,11,0.15), rgba(245,158,11,0.05))',
+    border: 'rgba(245,158,11,0.25)',
+    tag: 'SPEED',
+    difficulty: 'Hard',
+    time: '2-3 min',
+    locked: false,
+  },
+  {
+    id: 'true_false_blitz',
+    name: 'True / False Blitz',
+    description: 'Rapid-fire true or false statements. Swipe right for true, left for false.',
+    icon: <Crosshair size={28} />,
+    color: '#ec4899',
+    bg: 'linear-gradient(135deg, rgba(236,72,153,0.15), rgba(236,72,153,0.05))',
+    border: 'rgba(236,72,153,0.25)',
+    tag: 'BLITZ',
+    difficulty: 'Easy-Medium',
+    time: '1-2 min',
+    locked: false,
+  },
+  {
+    id: 'word_scramble',
+    name: 'Word Scramble',
+    description: 'Unscramble the letters to spell the answer. Hints reveal letters over time.',
+    icon: <Shuffle size={28} />,
+    color: '#06b6d4',
+    bg: 'linear-gradient(135deg, rgba(6,182,212,0.15), rgba(6,182,212,0.05))',
+    border: 'rgba(6,182,212,0.25)',
+    tag: 'PUZZLE',
+    difficulty: 'Medium',
+    time: '3-5 min',
+    locked: false,
+  },
+  {
+    id: 'boss_battle',
+    name: 'Boss Battle',
+    description: 'Face a concept boss. Answer increasingly harder questions to defeat it.',
+    icon: <Star size={28} />,
+    color: '#ef4444',
+    bg: 'linear-gradient(135deg, rgba(239,68,68,0.15), rgba(239,68,68,0.05))',
+    border: 'rgba(239,68,68,0.25)',
+    tag: 'BOSS',
+    difficulty: 'Expert',
+    time: '5-8 min',
+    locked: true,
+    unlockText: 'Reach Level 5',
+  },
 ]
 
-const SUBJECTS = ['All', 'math', 'science', 'english', 'general']
+const SUBJECTS = [
+  { key: 'all', label: 'All Subjects', icon: '🎯' },
+  { key: 'math', label: 'Math', icon: '📐' },
+  { key: 'science', label: 'Science', icon: '🔬' },
+  { key: 'english', label: 'English', icon: '📝' },
+  { key: 'general', label: 'General', icon: '🌍' },
+]
 
 export default function Games() {
   const navigate = useNavigate()
-  const [selectedSubject, setSelectedSubject] = useState('All')
+  const [subject, setSubject] = useState('all')
+  const [hoveredGame, setHoveredGame] = useState(null)
 
-  function play(mode) {
-    const subject = selectedSubject === 'All' ? 'general' : selectedSubject
-    navigate(`/games/play?mode=${mode}&subject=${subject}`)
+  function startGame(mode) {
+    if (mode.locked) return
+    navigate(`/games/play?mode=${mode.id}&subject=${subject === 'all' ? '' : subject}`)
   }
 
   return (
-    <div className="min-h-screen bg-gray-900">
+    <div className="page-wrapper">
       <Navbar />
-      <div className="max-w-6xl mx-auto px-4 py-8">
-        <h2 className="text-2xl font-bold text-white mb-2">Game Lobby</h2>
-        <p className="text-gray-400 mb-6">Pick a game mode and start earning XP!</p>
+      <div className="page-content">
+        <div className="page-header">
+          <h1>🎮 Game Arcade</h1>
+          <p>Choose a game mode and subject — AI adapts to your skill level</p>
+        </div>
 
-        <div className="flex flex-wrap gap-2 mb-8">
+        {/* Subject Filter */}
+        <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '2rem', flexWrap: 'wrap' }}>
           {SUBJECTS.map(s => (
-            <button
-              key={s} onClick={() => setSelectedSubject(s)}
-              className={`px-4 py-1.5 rounded-full text-sm font-medium transition-colors ${
-                selectedSubject === s ? 'bg-green-500 text-white' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-              }`}
-            >
-              {s.charAt(0).toUpperCase() + s.slice(1)}
+            <button key={s.key} onClick={() => setSubject(s.key)}
+              className={`btn ${subject === s.key ? 'btn-primary' : 'btn-secondary'}`}
+              style={{ fontSize: '0.85rem' }}>
+              {s.icon} {s.label}
             </button>
           ))}
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+        {/* Game Cards Grid */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))', gap: '1.25rem' }}>
           {GAME_MODES.map(mode => (
-            <div key={mode.id} className={`bg-gradient-to-br ${mode.color} rounded-xl p-6 border border-gray-700 hover:border-gray-500 transition-all`}>
-              <div className="mb-4">{mode.icon}</div>
-              <h3 className="text-white font-bold text-lg mb-2">{mode.name}</h3>
-              <p className="text-gray-400 text-sm mb-6">{mode.desc}</p>
-              <button
-                onClick={() => play(mode.id)}
-                className="w-full bg-white/10 hover:bg-white/20 text-white font-semibold py-2 rounded-lg transition-colors"
-              >
-                Play
-              </button>
+            <div
+              key={mode.id}
+              className="card card-clickable"
+              onMouseEnter={() => setHoveredGame(mode.id)}
+              onMouseLeave={() => setHoveredGame(null)}
+              onClick={() => startGame(mode)}
+              style={{
+                background: mode.bg,
+                borderColor: hoveredGame === mode.id ? mode.border : 'var(--border)',
+                cursor: mode.locked ? 'not-allowed' : 'pointer',
+                opacity: mode.locked ? 0.55 : 1,
+                position: 'relative',
+                overflow: 'hidden',
+              }}
+            >
+              {/* Glow effect on hover */}
+              {hoveredGame === mode.id && !mode.locked && (
+                <div style={{
+                  position: 'absolute', top: -50, right: -50,
+                  width: 120, height: 120, borderRadius: '50%',
+                  background: `${mode.color}15`,
+                  filter: 'blur(40px)',
+                  pointerEvents: 'none',
+                }} />
+              )}
+
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: '1rem', position: 'relative' }}>
+                <div style={{
+                  width: 56, height: 56, borderRadius: 14,
+                  background: `${mode.color}20`,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  color: mode.color, flexShrink: 0,
+                  boxShadow: hoveredGame === mode.id ? `0 0 20px ${mode.color}30` : 'none',
+                  transition: 'all 0.3s',
+                }}>
+                  {mode.locked ? <Lock size={24} /> : mode.icon}
+                </div>
+
+                <div style={{ flex: 1 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
+                    <h3 style={{ margin: 0 }}>{mode.name}</h3>
+                    <span className="badge" style={{ background: `${mode.color}20`, color: mode.color, fontSize: '0.6rem' }}>
+                      {mode.tag}
+                    </span>
+                  </div>
+                  <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', margin: '0.25rem 0 0.75rem', lineHeight: 1.5 }}>
+                    {mode.locked ? mode.unlockText : mode.description}
+                  </p>
+                  <div style={{ display: 'flex', gap: '1rem', fontSize: '0.7rem', color: 'var(--text-muted)' }}>
+                    <span>⚡ {mode.difficulty}</span>
+                    <span>⏱ {mode.time}</span>
+                  </div>
+                </div>
+
+                {!mode.locked && (
+                  <ChevronRight size={20} style={{ color: 'var(--text-muted)', flexShrink: 0, marginTop: 8 }} />
+                )}
+              </div>
             </div>
           ))}
         </div>
