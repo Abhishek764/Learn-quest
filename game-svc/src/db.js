@@ -29,10 +29,20 @@ async function initSchema(p) {
       correct_option INTEGER NOT NULL DEFAULT 0,
       explanation_i18n TEXT DEFAULT '{}',
       concept_tags TEXT DEFAULT '[]',
+      target_mode TEXT DEFAULT '',
+      xp_reward INTEGER DEFAULT 10,
       created_by TEXT,
       created_at TEXT DEFAULT CURRENT_TIMESTAMP
     )
   `);
+
+  // Migration for existing databases
+  try {
+    await p.query(`ALTER TABLE questions ADD COLUMN IF NOT EXISTS target_mode TEXT DEFAULT ''`);
+  } catch (e) { /* IF NOT EXISTS may be unsupported on older PG; ignore */ }
+  try {
+    await p.query(`ALTER TABLE questions ADD COLUMN IF NOT EXISTS xp_reward INTEGER DEFAULT 10`);
+  } catch (e) { /* migration */ }
 
   await p.query(`
     CREATE TABLE IF NOT EXISTS game_sessions (

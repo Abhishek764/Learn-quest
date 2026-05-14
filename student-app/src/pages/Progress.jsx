@@ -32,8 +32,13 @@ export default function Progress() {
       <Navbar />
       <div className="page-content">
         <motion.div className="page-header" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, ease }}>
-          <h1><BarChart2 size={22} style={{ display: 'inline', marginRight: 8 }} />Progress</h1>
-          <p>Your learning analytics powered by AI</p>
+          <div>
+            <h1>
+              <BarChart2 size={22} style={{ display: 'inline', marginRight: 8, color: 'var(--accent-bright)', verticalAlign: -2 }} />
+              Progress
+            </h1>
+            <p>AI-powered analytics on your learning journey.</p>
+          </div>
         </motion.div>
 
         <div className="grid-4" style={{ marginBottom: '1.5rem' }}>
@@ -53,7 +58,9 @@ export default function Progress() {
 
         <div className="grid-2">
           <motion.div className="card" custom={4} initial="hidden" animate="visible" variants={fadeUp}>
-            <h3 style={{ marginBottom: '1rem' }}>📈 Engagement Over Time</h3>
+            <h3 style={{ marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <TrendingUp size={16} style={{ color: 'var(--accent-bright)' }} /> Engagement over time
+            </h3>
             <div style={{ height: 200 }}>
               {trends.length > 0 ? (
                 <ResponsiveContainer width="100%" height="100%">
@@ -70,7 +77,9 @@ export default function Progress() {
           </motion.div>
 
           <motion.div className="card" custom={5} initial="hidden" animate="visible" variants={fadeUp}>
-            <h3 style={{ marginBottom: '1rem' }}>🧠 Concept Mastery</h3>
+            <h3 style={{ marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <Brain size={16} style={{ color: '#a855f7' }} /> Concept mastery
+            </h3>
             {Object.keys(subjects).length > 0 ? (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                 {Object.entries(subjects).map(([subj, concepts]) => {

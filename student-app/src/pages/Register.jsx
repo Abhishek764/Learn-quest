@@ -1,10 +1,17 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { UserPlus, Eye, EyeOff } from 'lucide-react'
+import { Zap, Eye, EyeOff, ArrowRight, AlertCircle, GraduationCap, BookOpen } from 'lucide-react'
 import API from '../api'
+import AuroraHero from '../components/AuroraHero'
+import OnboardingTeaser from '../components/OnboardingTeaser'
 
 const ease = [0.22, 1, 0.36, 1]
+
+const ROLES = [
+  { value: 'student', icon: <GraduationCap size={18} />, label: 'Student', desc: 'Learn & play' },
+  { value: 'educator', icon: <BookOpen size={18} />, label: 'Educator', desc: 'Teach & track' },
+]
 
 export default function Register() {
   const [form, setForm] = useState({ email: '', password: '', display_name: '', role: 'student' })
@@ -22,89 +29,157 @@ export default function Register() {
       localStorage.setItem('token', res.data.token)
       localStorage.setItem('user', JSON.stringify(res.data.user))
       navigate('/dashboard')
-    } catch (err) { setError(err.response?.data?.error || 'Registration failed') }
-    finally { setLoading(false) }
+    } catch (err) {
+      setError(err.response?.data?.error || 'Registration failed')
+    } finally {
+      setLoading(false)
+    }
   }
 
-  const roles = [
-    { value: 'student', emoji: '🎮', label: 'Student', desc: 'Learn & play games' },
-    { value: 'educator', emoji: '📚', label: 'Educator', desc: 'Create & manage content' },
-  ]
-
   return (
-    <div className="auth-page">
-      <div className="bg-orb" style={{ width: 500, height: 500, background: '#8b5cf6', filter: 'blur(150px)', opacity: 0.07, top: -100, right: -100 }} />
-      <div className="bg-orb" style={{ width: 400, height: 400, background: '#6366f1', filter: 'blur(120px)', opacity: 0.05, bottom: -100, left: -50 }} />
+    <div className="auth-shell">
+      <div className="auth-pane-form">
+        <motion.div
+          className="auth-card"
+          initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.7, ease }}
+        >
+          <Link to="/" className="brand-mark" aria-label="LearnQuest home">
+            <span className="brand-mark-tile"><Zap size={20} /></span>
+            <span className="brand-mark-text">LearnQuest</span>
+          </Link>
 
-      <div className="auth-left">
-        <motion.div className="auth-form" initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.7, ease }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem', marginBottom: '2.5rem' }}>
-            <div style={{ width: 42, height: 42, background: 'var(--accent-gradient)', borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.25rem', color: 'white', boxShadow: '0 0 30px var(--accent-glow)' }}>⚡</div>
-            <span style={{ fontFamily: 'var(--font-display)', fontSize: '1.5rem', fontWeight: 700, color: 'var(--text-heading)' }}>LearnQuest</span>
-          </div>
-
-          <h1 style={{ fontSize: '1.75rem' }}>Create account</h1>
-          <p className="subtitle">Join the AI-powered learning platform</p>
+          <motion.h1
+            initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.1, ease }}
+          >
+            Start your quest.
+          </motion.h1>
+          <motion.p
+            className="subtitle"
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+            transition={{ duration: 0.6, delay: 0.18, ease }}
+          >
+            Create an account in under 30 seconds.
+          </motion.p>
 
           {error && (
-            <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }}
-              style={{ padding: '0.75rem', background: 'var(--danger-dim)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: 14, color: 'var(--danger)', fontSize: '0.85rem', marginBottom: '1.25rem' }}>
-              {error}
+            <motion.div
+              role="alert"
+              initial={{ opacity: 0, y: -8, height: 0 }}
+              animate={{ opacity: 1, y: 0, height: 'auto' }}
+              transition={{ duration: 0.3, ease }}
+              style={{
+                display: 'flex', alignItems: 'center', gap: '0.5rem',
+                padding: '0.75rem 0.875rem', background: 'var(--danger-dim)',
+                border: '1px solid rgba(239,68,68,0.22)', borderRadius: 12,
+                color: 'var(--danger)', fontSize: '0.85rem', marginBottom: '1.25rem',
+              }}
+            >
+              <AlertCircle size={16} aria-hidden /> {error}
             </motion.div>
           )}
 
-          <form onSubmit={handleSubmit}>
-            <div className="form-group">
-              <label className="form-label">Display Name</label>
-              <input className="input" value={form.display_name} onChange={e => update('display_name', e.target.value)} placeholder="Alex" required />
-            </div>
-            <div className="form-group">
-              <label className="form-label">Email</label>
-              <input className="input" type="email" value={form.email} onChange={e => update('email', e.target.value)} placeholder="you@example.com" required />
-            </div>
-            <div className="form-group">
-              <label className="form-label">Password</label>
-              <div style={{ position: 'relative' }}>
-                <input className="input" type={showPw ? 'text' : 'password'} value={form.password} onChange={e => update('password', e.target.value)} placeholder="Min 6 characters" required />
-                <button type="button" onClick={() => setShowPw(!showPw)} style={{ position: 'absolute', right: 14, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}>
+          <form onSubmit={handleSubmit} noValidate>
+            <motion.div
+              className="form-group"
+              initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.22, ease }}
+            >
+              <label className="form-label">I am a</label>
+              <div className="role-grid" role="radiogroup" aria-label="Account type">
+                {ROLES.map(r => {
+                  const active = form.role === r.value
+                  return (
+                    <button
+                      key={r.value} type="button" role="radio" aria-checked={active}
+                      onClick={() => update('role', r.value)}
+                      className={`role-card ${active ? 'active' : ''}`}
+                    >
+                      <div className="role-card-icon">{r.icon}</div>
+                      <div className="role-card-title">{r.label}</div>
+                      <div className="role-card-desc">{r.desc}</div>
+                    </button>
+                  )
+                })}
+              </div>
+            </motion.div>
+
+            <motion.div
+              className="form-group"
+              initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.3, ease }}
+            >
+              <label htmlFor="display_name" className="form-label">Display name</label>
+              <input
+                id="display_name" className="input" autoComplete="nickname"
+                value={form.display_name} onChange={e => update('display_name', e.target.value)}
+                placeholder="Alex" required
+              />
+            </motion.div>
+
+            <motion.div
+              className="form-group"
+              initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.36, ease }}
+            >
+              <label htmlFor="reg_email" className="form-label">Email</label>
+              <input
+                id="reg_email" className="input" type="email" autoComplete="email"
+                value={form.email} onChange={e => update('email', e.target.value)}
+                placeholder="you@example.com" required
+              />
+            </motion.div>
+
+            <motion.div
+              className="form-group"
+              initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.42, ease }}
+            >
+              <label htmlFor="reg_pw" className="form-label">Password</label>
+              <div className="input-wrap">
+                <input
+                  id="reg_pw" className="input" type={showPw ? 'text' : 'password'}
+                  autoComplete="new-password" minLength={6}
+                  value={form.password} onChange={e => update('password', e.target.value)}
+                  placeholder="At least 6 characters" required
+                />
+                <button
+                  type="button" className="input-icon-btn"
+                  onClick={() => setShowPw(v => !v)}
+                  aria-label={showPw ? 'Hide password' : 'Show password'}
+                >
                   {showPw ? <EyeOff size={16} /> : <Eye size={16} />}
                 </button>
               </div>
-            </div>
-            <div className="form-group">
-              <label className="form-label">Role</label>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.625rem' }}>
-                {roles.map(r => (
-                  <motion.div key={r.value} onClick={() => update('role', r.value)} whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}
-                    style={{ padding: '1rem', borderRadius: 14, border: `1px solid ${form.role === r.value ? 'var(--accent)' : 'var(--border)'}`, background: form.role === r.value ? 'var(--accent-dim)' : 'var(--bg-card)', cursor: 'pointer', textAlign: 'center', transition: 'all 0.2s' }}>
-                    <div style={{ fontSize: '1.5rem', marginBottom: '0.25rem' }}>{r.emoji}</div>
-                    <div style={{ fontWeight: 600, color: 'var(--text-heading)', fontSize: '0.85rem' }}>{r.label}</div>
-                    <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>{r.desc}</div>
-                  </motion.div>
-                ))}
-              </div>
-            </div>
-            <motion.button type="submit" className="btn btn-primary btn-block btn-lg" disabled={loading}
-              whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} style={{ marginTop: '0.5rem' }}>
-              {loading ? <span className="loading-spinner" style={{ width: 20, height: 20, borderWidth: 2 }} /> : <><UserPlus size={18} /> Create Account</>}
+            </motion.div>
+
+            <motion.button
+              type="submit" className="btn-cta" disabled={loading}
+              initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.5, ease }}
+              whileTap={{ scale: 0.98 }}
+              style={{ marginTop: '0.5rem' }}
+            >
+              {loading
+                ? <span className="loading-spinner" style={{ width: 20, height: 20, borderWidth: 2 }} />
+                : <>Create account <ArrowRight size={18} className="arrow" /></>}
             </motion.button>
           </form>
-          <p style={{ textAlign: 'center', marginTop: '2rem', fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+
+          <motion.p
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+            transition={{ duration: 0.6, delay: 0.6, ease }}
+            style={{ textAlign: 'center', marginTop: '1.75rem', fontSize: '0.85rem', color: 'var(--text-muted)' }}
+          >
             Already have an account? <Link to="/login" style={{ fontWeight: 600 }}>Sign in</Link>
-          </p>
+          </motion.p>
         </motion.div>
       </div>
 
-      <div className="auth-right">
-        <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.8, delay: 0.2, ease }}
-          style={{ textAlign: 'center', padding: '3rem', maxWidth: 400 }}>
-          <div style={{ fontSize: '4rem', marginBottom: '1.5rem' }}>🚀</div>
-          <h2 style={{ fontSize: '1.5rem', marginBottom: '0.75rem' }}>Start Your Journey</h2>
-          <p style={{ color: 'var(--text-muted)', lineHeight: 1.7, fontSize: '0.9rem' }}>
-            Join thousands of learners. Our AI adapts to your unique learning style.
-          </p>
-        </motion.div>
-      </div>
+      <AuroraHero>
+        <OnboardingTeaser />
+      </AuroraHero>
     </div>
   )
 }

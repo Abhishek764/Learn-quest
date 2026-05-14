@@ -69,6 +69,8 @@ router.get('/sessions/:id/next-question', async (req, res) => {
     const session = sessionResult.rows[0];
     const difficulty = session.final_difficulty || 0.5;
     const subject = session.subject;
+    // mode filter: query param overrides session.game_mode, legacy questions (target_mode='') always match
+    const mode = (req.query.mode || session.game_mode || '').toString();
 
     // answered question ids
     const answeredResult = await query(
@@ -80,22 +82,35 @@ router.get('/sessions/:id/next-question', async (req, res) => {
     const minDiff = Math.max(0, difficulty - 0.2);
     const maxDiff = Math.min(1, difficulty + 0.2);
 
+    // mode predicate keeps legacy/un-tagged questions ('' or NULL) available to every mode
+    const modePredicate = `(target_mode = $MODE OR target_mode = '' OR target_mode IS NULL)`;
+
     let questionResult;
     if (subject && subject !== 'general') {
-      questionResult = await query(
-        `SELECT * FROM questions WHERE subject = $1 AND difficulty BETWEEN $2 AND $3 LIMIT 50`,
-        [subject, minDiff, maxDiff]
-      );
+      const sql = `SELECT * FROM questions
+                   WHERE subject = $1 AND difficulty BETWEEN $2 AND $3
+                     AND ${modePredicate.replace('$MODE', '$4')}
+                   LIMIT 50`;
+      questionResult = await query(sql, [subject, minDiff, maxDiff, mode]);
     } else {
-      questionResult = await query(
-        `SELECT * FROM questions WHERE difficulty BETWEEN $1 AND $2 LIMIT 50`,
-        [minDiff, maxDiff]
-      );
+      const sql = `SELECT * FROM questions
+                   WHERE difficulty BETWEEN $1 AND $2
+                     AND ${modePredicate.replace('$MODE', '$3')}
+                   LIMIT 50`;
+      questionResult = await query(sql, [minDiff, maxDiff, mode]);
     }
 
     let candidates = questionResult.rows.filter(q => !answeredIds.includes(q.id));
     if (candidates.length === 0) {
-      // fallback: any not answered
+      // fallback 1: any difficulty, mode-matching
+      const broad = await query(
+        `SELECT * FROM questions WHERE ${modePredicate.replace('$MODE', '$1')} LIMIT 100`,
+        [mode]
+      );
+      candidates = broad.rows.filter(q => !answeredIds.includes(q.id));
+    }
+    if (candidates.length === 0) {
+      // fallback 2: any question regardless of mode
       const allQ = await query('SELECT * FROM questions LIMIT 100');
       candidates = allQ.rows.filter(q => !answeredIds.includes(q.id));
     }
@@ -329,6 +344,7 @@ router.get('/questions', async (req, res) => {
         option_c: opts[2] || '',
         option_d: opts[3] || '',
         correct_option: LETTERS[q.correct_option] || 'A',
+        target_mode: q.target_mode || '',
       };
     });
     res.json(rows);
@@ -344,6 +360,7 @@ router.post('/questions', async (req, res) => {
     const {
       subject, difficulty, question_text, option_a, option_b, option_c, option_d,
       correct_option, // 'A'|'B'|'C'|'D' or 0-3
+      target_mode,
       // legacy format
       content, options, explanation,
     } = req.body;
@@ -362,10 +379,10 @@ router.post('/questions', async (req, res) => {
 
     const id = uuidv4();
     await query(
-      `INSERT INTO questions (id, subject, difficulty, type, content_i18n, options_i18n, correct_option, explanation_i18n, created_by)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+      `INSERT INTO questions (id, subject, difficulty, type, content_i18n, options_i18n, correct_option, explanation_i18n, target_mode, created_by)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
       [id, subject, difficulty || 0.5, 'mcq', contentJson, optionsJson, correctIdx,
-       JSON.stringify({ en: explanation || '' }), created_by]
+       JSON.stringify({ en: explanation || '' }), target_mode || '', created_by]
     );
 
     const LETTERS = ['A', 'B', 'C', 'D'];
@@ -375,6 +392,7 @@ router.post('/questions', async (req, res) => {
       option_a: optionsArr[0], option_b: optionsArr[1],
       option_c: optionsArr[2], option_d: optionsArr[3],
       correct_option: LETTERS[correctIdx],
+      target_mode: target_mode || '',
     });
   } catch (err) {
     console.error(err);

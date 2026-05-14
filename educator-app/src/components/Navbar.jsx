@@ -1,9 +1,11 @@
-import { Link, useNavigate } from 'react-router-dom'
-import { LogOut, BookOpen, Users, LayoutDashboard, GraduationCap } from 'lucide-react'
+import { useState } from 'react'
+import { Link, NavLink, useNavigate } from 'react-router-dom'
+import { LogOut, BookOpen, Users, LayoutDashboard, GraduationCap, Menu, X } from 'lucide-react'
 
 export default function Navbar() {
   const navigate = useNavigate()
   const user = JSON.parse(localStorage.getItem('user') || '{}')
+  const [open, setOpen] = useState(false)
 
   function logout() {
     localStorage.removeItem('token')
@@ -11,22 +13,73 @@ export default function Navbar() {
     navigate('/login')
   }
 
+  const initial = (user.display_name || 'E').trim().charAt(0).toUpperCase()
+
+  const links = [
+    { to: '/dashboard', icon: <LayoutDashboard size={15} />, label: 'Dashboard' },
+    { to: '/classes', icon: <Users size={15} />, label: 'Classes' },
+    { to: '/content', icon: <BookOpen size={15} />, label: 'Content' },
+  ]
+
   return (
-    <nav className="bg-gray-900 border-b border-gray-700 px-6 py-3 flex items-center justify-between">
-      <div className="flex items-center gap-6">
-        <Link to="/dashboard" className="text-purple-400 font-bold text-xl flex items-center gap-2">
-          <GraduationCap size={22} /> LearnQuest Educator
+    <nav className="navbar">
+      <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem' }}>
+        <Link to="/dashboard" className="navbar-brand" aria-label="LearnQuest Educator home">
+          <span className="brand-icon"><GraduationCap size={18} /></span>
+          <span>LearnQuest</span>
+          <span className="navbar-brand-suffix">Educator</span>
         </Link>
-        <div className="hidden md:flex items-center gap-4 text-sm">
-          <Link to="/dashboard" className="text-gray-300 hover:text-white flex items-center gap-1"><LayoutDashboard size={14} /> Dashboard</Link>
-          <Link to="/classes" className="text-gray-300 hover:text-white flex items-center gap-1"><Users size={14} /> Classes</Link>
-          <Link to="/content" className="text-gray-300 hover:text-white flex items-center gap-1"><BookOpen size={14} /> Content</Link>
+        <ul className="navbar-links hide-mobile" style={{ marginLeft: '0.5rem' }}>
+          {links.map(l => (
+            <li key={l.to}>
+              <NavLink to={l.to} className={({ isActive }) => `navbar-link ${isActive ? 'active' : ''}`}>
+                {l.icon} {l.label}
+              </NavLink>
+            </li>
+          ))}
+        </ul>
+      </div>
+
+      <div className="navbar-right">
+        {user.display_name && (
+          <div className="user-pill hide-mobile">
+            <div className="user-avatar">{initial}</div>
+            <span className="user-name">{user.display_name}</span>
+          </div>
+        )}
+        <button onClick={logout} className="icon-btn" aria-label="Sign out" title="Sign out">
+          <LogOut size={16} />
+        </button>
+        <button
+          className="icon-btn"
+          onClick={() => setOpen(v => !v)}
+          aria-label="Toggle menu"
+          style={{ display: 'none' }}
+        >
+          {open ? <X size={16} /> : <Menu size={16} />}
+        </button>
+      </div>
+
+      {/* Mobile menu */}
+      {open && (
+        <div style={{
+          position: 'absolute', top: 64, left: 0, right: 0,
+          background: 'rgba(7,9,12,0.95)', backdropFilter: 'blur(24px)',
+          borderBottom: '1px solid var(--border)',
+          padding: '0.75rem 1rem', display: 'flex', flexDirection: 'column', gap: '0.25rem',
+        }}>
+          {links.map(l => (
+            <NavLink
+              key={l.to}
+              to={l.to}
+              onClick={() => setOpen(false)}
+              className={({ isActive }) => `navbar-link ${isActive ? 'active' : ''}`}
+            >
+              {l.icon} {l.label}
+            </NavLink>
+          ))}
         </div>
-      </div>
-      <div className="flex items-center gap-4">
-        <span className="text-gray-400 text-sm">{user.display_name}</span>
-        <button onClick={logout} className="text-gray-400 hover:text-red-400"><LogOut size={18} /></button>
-      </div>
+      )}
     </nav>
   )
 }

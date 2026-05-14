@@ -1,83 +1,104 @@
-# LearnQuest — Game Design Document
+# LearnQuest — Game Design
 
-> **Last Updated:** 2026-05-14  |  **Owner:** Game Design & Product  |  **Status:** Living Document
+> **Last Updated:** 2026-05-14  |  **Owner:** Game Design  |  **Status:** Active
 
 ---
 
-## Core Game Loop
+## Game Philosophy
 
-```
-TRIGGER (streak reminder, CTA, quest)
-    → ACTION (play game, answer questions)
-    → REWARD (XP, badges, level up, confetti)
-    → INVESTMENT (streak, mastery, progress)
-    → TRIGGER (motivation to return)
-```
-
-This is the **Hook Model** — the same psychology that makes Duolingo, Instagram, and gaming platforms addictive.
+LearnQuest uses **real interactive game mechanics** — not just quiz wrappers. Every game mode is a distinct gameplay experience that tests different cognitive skills while reinforcing educational content through the ABOA adaptive engine.
 
 ---
 
 ## Game Modes
 
-### 1. Lightning Quiz ⚡ (Core — Implemented)
-10 questions, 30s each, adaptive difficulty. Base XP: 10/correct.
+### 1. Lightning Quiz ⚡ (Classic)
+- **Mechanic:** 10 MCQ questions, 30s timer per question
+- **AI Integration:** ABOA scores and ranks questions by relevance to student's weak areas
+- **Scoring:** Base XP + speed bonus + streak multiplier
+- **Difficulty:** Adapts in real-time based on answers
 
-### 2. Quest Map 🗺️ (Planned)
-Linear progression through 5-question levels. Boss battles every 5th level. Unlocks next level at ≥60% accuracy.
+### 2. Memory Match 🧠 (Memory)
+- **Mechanic:** 12 cards (6 pairs) — flip to match questions with correct answers
+- **Skills Tested:** Recall, association, visual memory
+- **Scoring:** 25 XP per match, tracked by move count
+- **Layout:** 4×3 card grid with flip animations
 
-### 3. Time Attack ⏱️ (Planned)
-120 seconds. Unlimited questions. +3s for correct, -5s for wrong. Tests speed + knowledge.
+### 3. Speed Type ⌨️ (Speed)
+- **Mechanic:** See question, type the correct answer before timer runs out
+- **Skills Tested:** Knowledge recall + typing speed
+- **Scoring:** 20 XP per correct, penalized for wrong answers
+- **Timer:** 20 seconds per question
 
-### 4. Daily Challenge ⭐ (Planned)
-5 curated questions/day. Same for all students. 2x XP. Daily leaderboard.
+### 4. True/False Blitz 🎯 (Blitz)
+- **Mechanic:** Rapid-fire statements — judge True or False
+- **Skills Tested:** Quick reasoning, fact verification
+- **Scoring:** 15 XP per correct
+- **Timer:** 10 seconds per statement
 
-### 5. Word Builder 📚 (Phase 2)
-Fill-in-blank and vocabulary. Different question type.
+### 5. Word Scramble 🔀 (Puzzle)
+- **Mechanic:** Unscramble letters to spell the correct answer
+- **Skills Tested:** Vocabulary, spelling, pattern recognition
+- **Scoring:** 20 XP per correct
+- **Timer:** 20 seconds per word
 
-### 6. Battle Mode ⚔️ (Phase 3)
-Real-time 1v1 via WebSocket. Same question, fastest correct wins.
+### 6. Boss Battle ⚔️ (Boss)
+- **Mechanic:** Progressive difficulty — answer increasingly harder questions to "defeat" a concept boss
+- **Status:** Locked until Level 5
+- **Skills Tested:** Deep mastery of a single concept
+- **Timer:** 5-8 minutes total
+
+### 7. Crew Quest 🚀 (Multiplayer — Among Us Style)
+- **Mechanic:** 2-8 players join a room, each assigned tasks (questions) at locations on a spaceship map
+- **Visual Theme:** Authentic Among Us aesthetic with crewmate characters, The Skeld map, "SHHHHH!" screen
+- **Flow:**
+  1. Host creates room → gets 6-digit code
+  2. Players join via code → lobby with ready system
+  3. "SHHHHH!" animation → game starts
+  4. Each player gets 5-8 tasks at different ship locations
+  5. Click task node on map → answer question
+  6. Real-time progress tracking of all players
+  7. Timer countdown (3 min default)
+  8. Victory screen with podium rankings
+- **Backend:** `game-svc/src/routes/crew-quest.js` (in-memory rooms)
+- **Locations:** Cafeteria, Navigation, Weapons, Shields, Communications, Storage, Electrical, Medbay, Admin, Reactor
 
 ---
 
-## Progression Systems
+## Shared Game Systems
 
-### XP: 10 base/correct + streak bonus (+2/consecutive) + speed bonus (+5 if <5s)
-### Level: floor(XP/100) + 1
-### Streaks: Daily login + 1 session. Badges at 3, 7, 14, 30, 100 days.
-### Badges: 5 seeded (First Steps, On a Roll, Week Warrior, Century Club, High Achiever) + extensible.
-### Skill Tree: Visual knowledge graph with mastery coloring per concept node.
-### Quests: AI-generated learning paths targeting weak areas.
+### Lives System
+- 3 lives (❤️❤️❤️) in solo modes
+- Wrong answer = lose 1 life
+- 0 lives = game over
+
+### Streak Multiplier
+- Consecutive correct answers build a streak (🔥)
+- Visual pulse animation on streak milestones
+
+### Timer
+- Circular countdown with urgency states:
+  - Green (>10s) → Yellow (5-10s) → Red (<5s, pulsing)
+
+### XP & Scoring
+- Base XP per correct answer
+- Speed bonus (faster = more XP)
+- Streak multiplier
+- Difficulty bonus (harder = more XP)
+- XP updates user level in real-time
+
+### Game Over Screen
+- Accuracy percentage
+- XP earned
+- Correct/Total count
+- Play Again + Back to Arcade buttons
 
 ---
 
-## Feedback Systems
+## Educator Game Assignment (Planned)
 
-**Correct:** Green glow → XP float-up → streak flame → auto-advance (500ms)
-**Wrong:** Red shake → correct highlighted → explanation → streak reset (1s)
-**Session Complete:** Star rating (⭐-⭐⭐⭐) + XP summary + confetti (≥80%) + play again
-**Level Up:** Full-screen celebration + badge reveal + confetti
-
----
-
-## Difficulty Curve (Flow Zone)
-
-ABOA maintains challenge between boredom (too easy) and anxiety (too hard):
-- Accuracy > 75% + fast → harder
-- Accuracy < 45% or slow → easier
-- Max step: ±0.15 per question
-- Invisible to student
-
----
-
-## Psychology Principles
-
-| Principle | Implementation |
-|-----------|---------------|
-| Dopamine loops | Correct → XP animation → level up notification |
-| Variable rewards | Occasional bonus XP, rare badges |
-| Loss aversion | "Don't lose your 14-day streak!" |
-| Social proof | Leaderboard rankings |
-| Mastery motivation | Skill tree visualization |
-| Autonomy | Player chooses mode, subject, pace |
-| Progression | Visible level, world, skill advancement |
+Educators will be able to:
+- Assign specific game modes to classes
+- Set subject/topic constraints
+- Schedule Crew Quest sessions with pre-configured rooms
+- View per-student game performance reports

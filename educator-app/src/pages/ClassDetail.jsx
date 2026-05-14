@@ -1,8 +1,15 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { ArrowLeft, Users, Copy, Check, Download } from 'lucide-react'
-import Navbar from '../components/Navbar'
+import { motion } from 'framer-motion'
+import { ArrowLeft, Users, Copy, Check, Download, TrendingUp, Award } from 'lucide-react'
+import Sidebar from '../components/Sidebar'
+import AnimatedBackground from '../components/AnimatedBackground'
+import SpotlightCard from '../components/reactbits/SpotlightCard'
+import TiltCard from '../components/reactbits/TiltCard'
 import API from '../api'
+
+const ease = [0.22, 1, 0.36, 1]
+const fadeUp = { hidden: { opacity: 0, y: 20 }, visible: (i = 0) => ({ opacity: 1, y: 0, transition: { delay: i * 0.06, duration: 0.5, ease } }) }
 
 export default function ClassDetail() {
   const { id } = useParams()
@@ -20,8 +27,7 @@ export default function ClassDetail() {
         API.get(`/classes/${id}`),
         API.get(`/classes/${id}/members`),
       ])
-      setCls(cRes.data)
-      setMembers(mRes.data || [])
+      setCls(cRes.data); setMembers(mRes.data || [])
     } catch {}
     setLoading(false)
   }
@@ -50,119 +56,144 @@ export default function ClassDetail() {
   }
 
   if (loading) return (
-    <div className="min-h-screen bg-gray-900">
-      <Navbar />
-      <div className="text-center py-16 text-gray-400">Loading...</div>
+    <div className="edu-shell">
+      <AnimatedBackground />
+      <Sidebar />
+      <main className="edu-main" style={{ textAlign: 'center', padding: '6rem 0' }}>
+        <span className="loading-spinner" style={{ display: 'inline-block' }} />
+      </main>
     </div>
   )
 
   if (!cls) return (
-    <div className="min-h-screen bg-gray-900">
-      <Navbar />
-      <div className="text-center py-16 text-gray-400">Class not found.</div>
+    <div className="edu-shell">
+      <AnimatedBackground />
+      <Sidebar />
+      <main className="edu-main" style={{ textAlign: 'center', padding: '6rem 0', color: 'var(--text-muted)' }}>
+        Classroom not found.
+      </main>
     </div>
   )
 
+  const sorted = [...members].sort((a, b) => (b.xp || 0) - (a.xp || 0))
   const avgXp = members.length ? Math.round(members.reduce((s, m) => s + (m.xp || 0), 0) / members.length) : 0
   const maxXp = members.length ? Math.max(...members.map(m => m.xp || 0)) : 500
 
+  const stats = [
+    { icon: <Users size={18} />,      label: 'Members', value: members.length,           color: '#14b8a6', glow: 'rgba(20,184,166,0.22)' },
+    { icon: <TrendingUp size={18} />, label: 'Avg XP',  value: avgXp.toLocaleString(),   color: '#0ea5e9', glow: 'rgba(14,165,233,0.22)' },
+    { icon: <Award size={18} />,      label: 'Top XP',  value: maxXp.toLocaleString(),   color: '#f59e0b', glow: 'rgba(245,158,11,0.22)' },
+  ]
+
   return (
-    <div className="min-h-screen bg-gray-900">
-      <Navbar />
-      <div className="max-w-7xl mx-auto px-4 py-8">
-        {/* Header */}
-        <button onClick={() => navigate('/classes')} className="flex items-center gap-2 text-gray-400 hover:text-white text-sm mb-4 transition-colors">
-          <ArrowLeft size={16} /> Back to Classes
+    <div className="edu-shell">
+      <AnimatedBackground />
+      <Sidebar />
+      <main className="edu-main">
+        <button onClick={() => navigate('/classes')} className="btn btn-ghost btn-sm" style={{ marginBottom: '1rem' }}>
+          <ArrowLeft size={14} /> Back to classrooms
         </button>
 
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+        <motion.div
+          className="page-header" initial="hidden" animate="visible" variants={fadeUp}
+          style={{ flexDirection: 'row', alignItems: 'center' }}
+        >
           <div>
-            <h2 className="text-2xl font-bold text-white">{cls.name}</h2>
-            <div className="text-gray-400 text-sm capitalize mt-1">{cls.subject}</div>
+            <h1>{cls.name}</h1>
+            <p style={{ textTransform: 'capitalize' }}>{cls.subject}{cls.description ? ` · ${cls.description}` : ''}</p>
           </div>
-          <div className="flex items-center gap-3">
-            <div className="bg-gray-800 border border-gray-700 rounded-lg px-4 py-2 flex items-center gap-3">
+          <div style={{ display: 'flex', gap: '0.625rem', alignItems: 'center', flexWrap: 'wrap' }}>
+            <div className="invite-pill">
               <div>
-                <div className="text-gray-500 text-xs">Invite Code</div>
-                <div className="font-mono text-purple-400 font-bold tracking-widest">{cls.invite_code}</div>
+                <div className="lbl">Invite Code</div>
+                <div className="code">{cls.invite_code}</div>
               </div>
-              <button onClick={copyCode} className="text-gray-400 hover:text-white transition-colors">
-                {copied ? <Check size={16} className="text-green-400" /> : <Copy size={16} />}
+              <button onClick={copyCode} className="copy-btn" aria-label="Copy invite code">
+                {copied ? <Check size={16} style={{ color: 'var(--success)' }} /> : <Copy size={15} />}
               </button>
             </div>
-            <button onClick={exportCSV} disabled={!members.length}
-              className="flex items-center gap-2 bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded-lg text-sm transition-colors disabled:opacity-40">
-              <Download size={16} /> Export CSV
+            <button onClick={exportCSV} disabled={!members.length} className="btn btn-secondary">
+              <Download size={15} /> Export CSV
             </button>
           </div>
-        </div>
+        </motion.div>
 
-        {/* Stats row */}
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-6">
-          {[
-            { icon: <Users size={18} className="text-purple-400" />, label: 'Members', value: members.length },
-            { icon: <span className="text-blue-400 font-bold text-sm">XP</span>, label: 'Avg XP', value: avgXp },
-            { icon: <span className="text-green-400 font-bold text-sm">LV</span>, label: 'Top XP', value: maxXp },
-          ].map((s, i) => (
-            <div key={i} className="bg-gray-800 rounded-xl p-4 border border-gray-700">
-              <div className="flex items-center gap-2 mb-1">{s.icon}<span className="text-gray-400 text-xs">{s.label}</span></div>
-              <div className="text-xl font-bold text-white">{s.value}</div>
-            </div>
+        <div className="grid-3" style={{ marginBottom: '1.5rem' }}>
+          {stats.map((s, i) => (
+            <motion.div key={i} custom={i + 1} initial="hidden" animate="visible" variants={fadeUp}>
+              <TiltCard maxTilt={6} scale={1.02}>
+                <SpotlightCard spotlightColor={s.glow} className="stat-card" radius={280}>
+                  <div className="stat-row">
+                    <div className="stat-icon" style={{ background: `${s.color}15`, color: s.color, border: `1px solid ${s.color}30` }}>{s.icon}</div>
+                    <div className="stat-label">{s.label}</div>
+                  </div>
+                  <div className="stat-value">{s.value}</div>
+                </SpotlightCard>
+              </TiltCard>
+            </motion.div>
           ))}
         </div>
 
-        {/* Member list */}
-        <div className="bg-gray-800 rounded-xl border border-gray-700 overflow-hidden">
-          <div className="px-6 py-4 border-b border-gray-700">
-            <h3 className="text-white font-semibold">Members ({members.length})</h3>
-          </div>
+        <motion.div custom={5} initial="hidden" animate="visible" variants={fadeUp}>
+          <SpotlightCard spotlightColor="rgba(20,184,166,0.14)" style={{ padding: 0, overflow: 'hidden' }}>
+            <div style={{ padding: '1.25rem 1.5rem', borderBottom: '1px solid var(--border)' }}>
+              <h3>Members ({members.length})</h3>
+            </div>
 
-          {members.length === 0 ? (
-            <div className="text-center py-12">
-              <div className="text-gray-500 mb-2">No students yet</div>
-              <div className="text-gray-600 text-sm">Share invite code <span className="font-mono text-purple-400">{cls.invite_code}</span> with your students</div>
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="text-gray-400 bg-gray-700/30">
-                    <th className="text-left px-6 py-3">Rank</th>
-                    <th className="text-left px-6 py-3">Name</th>
-                    <th className="text-left px-6 py-3">Level</th>
-                    <th className="text-left px-6 py-3">XP Progress</th>
-                    <th className="text-right px-6 py-3">XP</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {[...members].sort((a, b) => (b.xp || 0) - (a.xp || 0)).map((m, i) => {
-                    const pct = maxXp > 0 ? Math.round(((m.xp || 0) / maxXp) * 100) : 0
-                    return (
-                      <tr key={m.id} className="border-t border-gray-700/50 hover:bg-gray-700/20 transition-colors">
-                        <td className="px-6 py-3 text-gray-400">
-                          {i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `#${i + 1}`}
-                        </td>
-                        <td className="px-6 py-3 text-white font-medium">{m.display_name}</td>
-                        <td className="px-6 py-3 text-gray-300">Lv {m.level || 1}</td>
-                        <td className="px-6 py-3 w-48">
-                          <div className="flex items-center gap-2">
-                            <div className="flex-1 bg-gray-700 rounded-full h-2">
-                              <div className="bg-purple-500 h-2 rounded-full transition-all"
-                                style={{ width: `${pct}%` }} />
+            {members.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '3rem 1.5rem' }}>
+                <p style={{ color: 'var(--text-muted)', marginBottom: '0.5rem', fontSize: '0.9rem' }}>No students enrolled yet.</p>
+                <p style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>
+                  Share invite code{' '}
+                  <span style={{
+                    fontFamily: 'var(--font-mono)', fontWeight: 700, letterSpacing: '0.15em',
+                    background: 'var(--accent-gradient)',
+                    WebkitBackgroundClip: 'text', backgroundClip: 'text', WebkitTextFillColor: 'transparent',
+                  }}>{cls.invite_code}</span> with your students.
+                </p>
+              </div>
+            ) : (
+              <div className="tbl-wrap">
+                <table className="tbl">
+                  <thead>
+                    <tr>
+                      <th style={{ width: 60 }}>Rank</th>
+                      <th>Name</th>
+                      <th style={{ width: 80 }}>Level</th>
+                      <th>XP progress</th>
+                      <th style={{ textAlign: 'right', width: 90 }}>XP</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {sorted.map((m, i) => {
+                      const pct = maxXp > 0 ? Math.round(((m.xp || 0) / maxXp) * 100) : 0
+                      const rankClass = i === 0 ? 'tbl-rank-gold' : i === 1 ? 'tbl-rank-silver' : i === 2 ? 'tbl-rank-bronze' : ''
+                      return (
+                        <tr key={m.id}>
+                          <td className={rankClass} style={{ fontFamily: 'var(--font-mono)' }}>#{i + 1}</td>
+                          <td className="name">{m.display_name}</td>
+                          <td>Lv {m.level || 1}</td>
+                          <td style={{ minWidth: 180 }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem' }}>
+                              <div className="progress-bar" style={{ flex: 1, height: 6 }}>
+                                <div className="progress-fill" style={{ width: `${pct}%` }} />
+                              </div>
+                              <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', width: 36, textAlign: 'right' }}>{pct}%</span>
                             </div>
-                            <span className="text-gray-500 text-xs w-8 text-right">{pct}%</span>
-                          </div>
-                        </td>
-                        <td className="px-6 py-3 text-right text-purple-400 font-semibold">{m.xp || 0}</td>
-                      </tr>
-                    )
-                  })}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
-      </div>
+                          </td>
+                          <td style={{ textAlign: 'right', color: 'var(--accent-bright)', fontFamily: 'var(--font-mono)', fontWeight: 600 }}>
+                            {(m.xp || 0).toLocaleString()}
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </SpotlightCard>
+        </motion.div>
+      </main>
     </div>
   )
 }

@@ -1,8 +1,10 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { Zap, Eye, EyeOff } from 'lucide-react'
+import { Zap, Eye, EyeOff, ArrowRight, AlertCircle } from 'lucide-react'
 import API from '../api'
+import AuroraHero from '../components/AuroraHero'
+import FloatingCards from '../components/FloatingCards'
 
 const ease = [0.22, 1, 0.36, 1]
 
@@ -21,77 +23,139 @@ export default function Login() {
       localStorage.setItem('token', res.data.token)
       localStorage.setItem('user', JSON.stringify(res.data.user))
       navigate('/dashboard')
-    } catch (err) { setError(err.response?.data?.error || 'Login failed') }
-    finally { setLoading(false) }
+    } catch (err) {
+      setError(err.response?.data?.error || 'Login failed')
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
-    <div className="auth-page">
-      {/* Background orbs */}
-      <div className="bg-orb" style={{ width: 500, height: 500, background: '#6366f1', filter: 'blur(150px)', opacity: 0.08, top: -100, left: -100 }} />
-      <div className="bg-orb" style={{ width: 400, height: 400, background: '#8b5cf6', filter: 'blur(120px)', opacity: 0.06, bottom: -100, right: -50 }} />
+    <div className="auth-shell">
+      <div className="auth-pane-form">
+        <motion.div
+          className="auth-card"
+          initial={{ opacity: 0, y: 24 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.7, ease }}
+        >
+          <Link to="/" className="brand-mark" aria-label="LearnQuest home">
+            <span className="brand-mark-tile"><Zap size={20} /></span>
+            <span className="brand-mark-text">LearnQuest</span>
+          </Link>
 
-      <div className="auth-left">
-        <motion.div className="auth-form" initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.7, ease }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem', marginBottom: '2.5rem' }}>
-            <div style={{ width: 42, height: 42, background: 'var(--accent-gradient)', borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.25rem', color: 'white', boxShadow: '0 0 30px var(--accent-glow)' }}>⚡</div>
-            <span style={{ fontFamily: 'var(--font-display)', fontSize: '1.5rem', fontWeight: 700, color: 'var(--text-heading)' }}>LearnQuest</span>
-          </div>
-
-          <h1 style={{ fontSize: '1.75rem' }}>Welcome back</h1>
-          <p className="subtitle">Sign in to continue your learning journey</p>
+          <motion.h1
+            initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.1, ease }}
+          >
+            Welcome back.
+          </motion.h1>
+          <motion.p
+            className="subtitle"
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+            transition={{ duration: 0.6, delay: 0.18, ease }}
+          >
+            Sign in to continue your learning journey.
+          </motion.p>
 
           {error && (
-            <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }}
-              style={{ padding: '0.75rem', background: 'var(--danger-dim)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: 14, color: 'var(--danger)', fontSize: '0.85rem', marginBottom: '1.25rem' }}>
-              {error}
+            <motion.div
+              role="alert"
+              initial={{ opacity: 0, y: -8, height: 0 }}
+              animate={{ opacity: 1, y: 0, height: 'auto' }}
+              transition={{ duration: 0.3, ease }}
+              style={{
+                display: 'flex', alignItems: 'center', gap: '0.5rem',
+                padding: '0.75rem 0.875rem', background: 'var(--danger-dim)',
+                border: '1px solid rgba(239,68,68,0.22)', borderRadius: 12,
+                color: 'var(--danger)', fontSize: '0.85rem', marginBottom: '1.25rem',
+              }}
+            >
+              <AlertCircle size={16} aria-hidden /> {error}
             </motion.div>
           )}
 
-          <form onSubmit={handleSubmit}>
-            <div className="form-group">
-              <label className="form-label">Email</label>
-              <input className="input" type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="you@example.com" required />
-            </div>
-            <div className="form-group">
-              <label className="form-label">Password</label>
-              <div style={{ position: 'relative' }}>
-                <input className="input" type={showPw ? 'text' : 'password'} value={password} onChange={e => setPassword(e.target.value)} placeholder="••••••••" required />
-                <button type="button" onClick={() => setShowPw(!showPw)} style={{ position: 'absolute', right: 14, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}>
+          <form onSubmit={handleSubmit} noValidate>
+            <motion.div
+              className="form-group"
+              initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.25, ease }}
+            >
+              <label htmlFor="email" className="form-label">Email</label>
+              <input
+                id="email" className="input" type="email" autoComplete="email"
+                value={email} onChange={e => setEmail(e.target.value)}
+                placeholder="you@example.com" required
+              />
+            </motion.div>
+
+            <motion.div
+              className="form-group"
+              initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.32, ease }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+                <label htmlFor="password" className="form-label">Password</label>
+                <a href="#" style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Forgot?</a>
+              </div>
+              <div className="input-wrap">
+                <input
+                  id="password" className="input" type={showPw ? 'text' : 'password'}
+                  autoComplete="current-password"
+                  value={password} onChange={e => setPassword(e.target.value)}
+                  placeholder="••••••••" required
+                />
+                <button
+                  type="button" className="input-icon-btn"
+                  onClick={() => setShowPw(v => !v)}
+                  aria-label={showPw ? 'Hide password' : 'Show password'}
+                >
                   {showPw ? <EyeOff size={16} /> : <Eye size={16} />}
                 </button>
               </div>
-            </div>
-            <motion.button type="submit" className="btn btn-primary btn-block btn-lg" disabled={loading}
-              whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} style={{ marginTop: '0.5rem' }}>
-              {loading ? <span className="loading-spinner" style={{ width: 20, height: 20, borderWidth: 2 }} /> : <><Zap size={18} /> Sign In</>}
+            </motion.div>
+
+            <motion.button
+              type="submit" className="btn-cta" disabled={loading}
+              initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.4, ease }}
+              whileTap={{ scale: 0.98 }}
+              style={{ marginTop: '0.25rem' }}
+            >
+              {loading
+                ? <span className="loading-spinner" style={{ width: 20, height: 20, borderWidth: 2 }} />
+                : <>Sign In <ArrowRight size={18} className="arrow" /></>}
             </motion.button>
           </form>
 
-          <p style={{ textAlign: 'center', marginTop: '2rem', fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-            Don't have an account? <Link to="/register" style={{ fontWeight: 600 }}>Create one</Link>
-          </p>
-        </motion.div>
-      </div>
+          <motion.p
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+            transition={{ duration: 0.6, delay: 0.55, ease }}
+            style={{ textAlign: 'center', marginTop: '2rem', fontSize: '0.85rem', color: 'var(--text-muted)' }}
+          >
+            New here? <Link to="/register" style={{ fontWeight: 600 }}>Create an account</Link>
+          </motion.p>
 
-      <div className="auth-right">
-        <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.8, delay: 0.2, ease }}
-          style={{ textAlign: 'center', padding: '3rem', maxWidth: 400 }}>
-          <div style={{ fontSize: '4rem', marginBottom: '1.5rem' }}>🎮</div>
-          <h2 style={{ fontSize: '1.5rem', marginBottom: '0.75rem' }}>Learn by Playing</h2>
-          <p style={{ color: 'var(--text-muted)', lineHeight: 1.7, fontSize: '0.9rem' }}>
-            AI adapts every question to your level. Level up, master concepts, and compete with friends.
-          </p>
-          <div style={{ display: 'flex', justifyContent: 'center', gap: '2.5rem', marginTop: '2.5rem' }}>
-            {[{ v: '46', l: 'Concepts', c: 'var(--accent-bright)' }, { v: '120+', l: 'Questions', c: 'var(--xp)' }, { v: 'AI', l: 'Powered', c: '#8b5cf6' }].map((s, i) => (
-              <div key={i}>
-                <div style={{ fontFamily: 'var(--font-mono)', fontSize: '1.5rem', fontWeight: 800, color: s.c }}>{s.v}</div>
-                <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: 2 }}>{s.l}</div>
-              </div>
-            ))}
+          <div className="trust-strip">
+            <div className="trust-stat">
+              <div className="num">12k+</div>
+              <div className="lbl">Active learners</div>
+            </div>
+            <div className="trust-stat">
+              <div className="num">46</div>
+              <div className="lbl">Concepts</div>
+            </div>
+            <div className="trust-stat">
+              <div className="num">AI</div>
+              <div className="lbl">Adaptive</div>
+            </div>
           </div>
         </motion.div>
       </div>
+
+      <AuroraHero>
+        <FloatingCards />
+      </AuroraHero>
     </div>
   )
 }

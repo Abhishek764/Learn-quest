@@ -1,12 +1,12 @@
 # LearnQuest — Current State
 
-> **Last Updated:** 2026-05-14  |  **Owner:** Engineering  |  **Status:** Update After Every Major Change
+> **Last Updated:** 2026-05-14  |  **Owner:** Engineering  |  **Status:** Active Development
 
 ---
 
 ## Overview
 
-LearnQuest is a working gamified education platform with 6 backend microservices, an API gateway, and 2 React frontend apps. The backend is functional with 36/36 tests passing. The frontend works but has poor UI quality. The AI adaptive learning engine exists but is rudimentary.
+LearnQuest is a world-class gamified education platform with 6 backend microservices, an API gateway, 2 React frontend apps, and an AI adaptive learning engine. The platform features **7 game modes** (including an Among Us-style multiplayer game called Crew Quest), a **46-node knowledge graph**, **120+ seeded questions**, and a **premium cinematic UI** inspired by Linear/Vercel/SOCius with Framer Motion animations and glassmorphism.
 
 ---
 
@@ -14,117 +14,119 @@ LearnQuest is a working gamified education platform with 6 backend microservices
 
 ### Backend Services (All Running)
 
-| Service | Port | Status | Tests |
-|---------|------|--------|-------|
-| gateway | 3000 | ✅ Working | — |
-| auth-svc | 3001 | ✅ Working | 7/7 |
-| user-svc | 3002 | ✅ Working | 7/7 |
-| game-svc | 3003 | ✅ Working | 6/6 |
-| aboa-svc | 3004 | ✅ Working | 11/11 |
-| analytics-svc | 3005 | ✅ Working | 5/5 |
-| rt-svc | 3006 | ✅ Working | — |
+| Service | Port | Status | Key Features |
+|---------|------|--------|-------------|
+| gateway | 3000 | ✅ Working | JWT auth middleware, rate limiting, service proxy |
+| auth-svc | 3001 | ✅ Working | Register, login, token refresh, blacklisting |
+| user-svc | 3002 | ✅ Working | Profiles, XP/leveling, badges, classes, leaderboard |
+| game-svc | 3003 | ✅ Working | Game sessions, ABOA-scored questions, **Crew Quest rooms** |
+| aboa-svc | 3004 | ✅ Working | 9-module AI engine, knowledge graph, mastery tracking |
+| analytics-svc | 3005 | ✅ Working | Stats, trends, heatmap, growth tips |
+| rt-svc | 3006 | ✅ Working | Socket.io rooms, real-time events |
 
-### Functional Features
+### AI Adaptive Engine (ABOA)
 
-- ✅ User registration and login with JWT
-- ✅ Token refresh and logout with blacklisting
-- ✅ User profiles with display name, avatar, language
-- ✅ XP system with auto-leveling (level = floor(xp/100) + 1)
-- ✅ Badge system (5 badges: xp and streak based)
-- ✅ Class creation with invite codes
-- ✅ Class joining and member listing
-- ✅ Global XP leaderboard
-- ✅ Game session lifecycle (start, next-question, answer, end)
-- ✅ 20 seed questions across math, science, english, general
-- ✅ ABOA engagement scoring (5-factor weighted)
-- ✅ Basic difficulty adjustment (±0.1 based on accuracy)
-- ✅ 365-day activity heatmap
-- ✅ 30-day engagement trend data
-- ✅ Lifetime stats (sessions, accuracy, streak, subject)
-- ✅ Growth tips generation
-- ✅ Socket.io realtime service with room management
-- ✅ Docker Compose for full-stack deployment
+- ✅ 46-node knowledge graph with 7 tables
+- ✅ Bayesian mastery tracking per concept per student
+- ✅ SM-2 spaced repetition scheduling
+- ✅ Dynamic difficulty adjustment (DDA)
+- ✅ Intelligent question recommendation scoring
+- ✅ Learning path generation
+- ✅ 120+ questions with concept tags across 4 subjects
 
-### Frontend Pages (Working but Basic UI)
+### Game Modes (7 Total)
 
-- ✅ Login / Register
-- ✅ Student Dashboard (stats, heatmap, charts, badges, tips)
-- ✅ Game Lobby (6 game mode cards with subject filter)
-- ✅ GamePlay (timer, options, feedback, hints, game over)
-- ✅ Progress (subject accuracy, engagement chart, session history)
-- ✅ Leaderboard (ranked list with user highlight)
-- ✅ Profile (edit name, avatar, language)
-- ✅ Educator Dashboard (metrics, top students, XP distribution, classes)
-- ✅ Educator Classes (create, list, invite codes)
-- ✅ Educator Content (create questions, filter, list)
+| Game | Type | Status |
+|------|------|--------|
+| Lightning Quiz | MCQ with adaptive AI | ✅ Working |
+| Memory Match | Card-flip recall game | ✅ Working |
+| Speed Type | Type-the-answer race | ✅ Working |
+| True/False Blitz | Rapid-fire judgments | ✅ Working |
+| Word Scramble | Unscramble letters | ✅ Working |
+| Boss Battle | Progressive difficulty | 🔒 Locked (Lv.5) |
+| **Crew Quest** | **Among Us multiplayer** | ✅ Working |
 
----
+### Crew Quest — Among Us Multiplayer
 
-## What's Broken or Missing
+- ✅ Room create/join with 6-digit codes
+- ✅ 2-8 player lobby with ready system
+- ✅ CSS crewmate characters (body, visor, backpack, legs)
+- ✅ "SHHHHH!" start screen animation
+- ✅ The Skeld-inspired SVG ship map with 10 labeled rooms
+- ✅ Task assignment (questions as tasks at room locations)
+- ✅ Real-time player progress tracking via polling
+- ✅ Timer countdown, scoring with speed bonuses
+- ✅ Victory screen with podium rankings
+- Backend: `game-svc/src/routes/crew-quest.js`
+- Frontend: `student-app/src/pages/CrewQuest.jsx` + `CrewQuest.css`
 
-### Critical Gaps
+### Frontend — Premium Cinematic UI
 
-| Gap | Details |
-|-----|---------|
-| **Random question selection** | `game-svc/next-question` uses `Math.floor(Math.random() * candidates.length)` — NO intelligence |
-| **No knowledge graph** | No concept relationships, no prerequisite tracking |
-| **No student skill model** | Only XP/level exists — no per-concept mastery |
-| **No spaced repetition** | Concepts answered wrong are never strategically reintroduced |
-| **No personalized paths** | No quest generation, no targeted reinforcement |
-| **Stub class report** | `analytics-svc GET /analytics/class/:id/report` returns hardcoded data |
-| **No at-risk detection** | No student risk assessment for educators |
+- ✅ **Design System**: Deep black `#06060a`, indigo-purple gradient accents
+- ✅ **Framer Motion**: Fade-up reveals, staggered cards, hover-lift, micro-animations
+- ✅ **Animated Background**: Floating gradient orbs + particle canvas with connection lines
+- ✅ **Glassmorphic Cards**: `backdrop-filter: blur(24px)`, top-light borders
+- ✅ **Typography**: Inter, Space Grotesk, JetBrains Mono
+- ✅ **Premium Transitions**: `cubic-bezier(0.22, 1, 0.36, 1)`
 
-### UI Issues
+### Frontend Pages
 
-| Issue | Details |
-|-------|---------|
-| CDN Tailwind | `<script src="cdn.tailwindcss.com">` — not tree-shakeable, FOUC |
-| Leftover Vite CSS | `App.css` contains `.hero`, `.ticks`, `.counter` scaffold styles |
-| `#root` constraint | index.css constrains `#root` to 1126px with borders — breaks full-screen |
-| No custom fonts | Uses `system-ui` — looks generic |
-| No animations | Zero micro-interactions, celebrations, or transitions |
-| No glassmorphism | Flat gray cards everywhere |
-| No mobile nav | No hamburger menu on mobile |
-| README encoding | UTF-16 with null bytes — renders as garbage on GitHub |
-| No meta tags | No description, no OG tags, no proper SEO |
-
-### Code Issues
-
-| Issue | Details |
-|-------|---------|
-| Hardcoded API URL | Login/Register use `http://localhost:3000` directly instead of api.js |
-| No input validation | Backend accepts any payload without schema validation |
-| No TypeScript | All JavaScript — no type safety |
-| `color-scheme: light dark` | CSS declares both but all components hardcode dark classes |
+| Page | Status | Key Features |
+|------|--------|-------------|
+| Login | ✅ Premium | Split layout, gradient orbs, animated button |
+| Register | ✅ Premium | Role selection cards, password toggle |
+| Dashboard | ✅ Premium | Stats grid, engagement chart, heatmap, quick actions |
+| Games Arcade | ✅ Premium | 7 game cards with hover-lift, subject filter |
+| GamePlay | ✅ Premium | Lives, timer, streak, 5 game mode renderers |
+| Crew Quest | ✅ Among Us | Ship map, crewmates, SHHH screen, lobby |
+| Progress | ✅ Premium | Dual-line chart, mastery bars by subject |
+| Leaderboard | ✅ Premium | Medals, staggered row animation |
+| Profile | ✅ Premium | Gradient avatar, inline edit, XP progress |
+| Skill Tree | ✅ Working | Knowledge graph visualization |
+| Quests | ✅ Working | AI-generated learning paths |
 
 ---
 
-## File Counts
+## File Structure
 
 | Directory | Files | Purpose |
-|-----------|-------|---------|
+|-----------|-------|---------| 
 | auth-svc/src | 3 | index.js, db.js, routes/auth.js |
 | user-svc/src | 4 | index.js, db.js, routes/users.js, routes/classes.js |
-| game-svc/src | 3 | index.js, db.js, routes/games.js |
-| aboa-svc/src | 4 | index.js, db.js, aboa.js, routes/ (empty) |
-| analytics-svc/src | 3 | index.js, db.js, routes/ (empty) |
+| game-svc/src | 5 | index.js, db.js, seed-questions.js, routes/games.js, **routes/crew-quest.js** |
+| aboa-svc/src | 3 | index.js, db.js, aboa.js (9 modules) |
+| analytics-svc/src | 3 | index.js, db.js, routes/analytics.js |
 | rt-svc/src | 1 | index.js |
 | gateway/src | 1 | index.js |
-| student-app/src | 13 | App.jsx, main.jsx, api.js, index.css, App.css, Navbar.jsx, 8 pages |
-| educator-app/src | 11 | App.jsx, main.jsx, api.js, index.css, App.css, Navbar.jsx, 6 pages |
+| student-app/src | 17 | App.jsx, main.jsx, api.js, index.css, AnimatedBackground.jsx, Navbar.jsx, **12 pages** |
+| educator-app/src | 11 | App.jsx, main.jsx, api.js, Navbar.jsx, 6 pages |
 
-**Total backend code:** ~1,500 lines across 19 source files
-**Total frontend code:** ~1,200 lines across 24 source files
+**Total backend code:** ~3,000 lines across 20 source files  
+**Total frontend code:** ~3,500 lines across 28 source files  
 **Total tests:** 36 passing across 5 test files
 
 ---
 
 ## Database State
 
-- **PostgreSQL:** Neon.tech serverless (free tier)
-- **Tables:** 11 tables across services (auto-created on startup)
-- **Seed data:** 20 questions, 5 badge definitions
-- **Schema management:** CREATE TABLE IF NOT EXISTS (no migration tool)
+- **PostgreSQL:** Neon.tech serverless
+- **Tables:** 18+ tables across services (including knowledge graph tables)
+- **Seed data:** 120+ questions, 46 knowledge nodes, 5 badge definitions
+- **Schema management:** CREATE TABLE IF NOT EXISTS (auto-migration on startup)
+
+---
+
+## Key Dependencies
+
+| Package | Version | Used In |
+|---------|---------|---------|
+| framer-motion | ^12.x | student-app (animations) |
+| recharts | ^2.x | student-app (charts) |
+| lucide-react | ^0.x | student-app (icons) |
+| socket.io | ^4.x | rt-svc (real-time) |
+| express | ^4.x | All backend services |
+| pg | ^8.x | All backend services |
+| jsonwebtoken | ^9.x | auth-svc, gateway |
 
 ---
 
@@ -139,9 +141,6 @@ npm run dev
 
 # Run all tests
 npm test
-
-# Docker (full stack including PostgreSQL)
-docker compose up -d
 ```
 
 **URLs:**

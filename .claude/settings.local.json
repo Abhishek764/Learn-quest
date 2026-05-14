@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Skill(ui-ux-pro-max)",
+      "Bash(python scripts/search.py \"education gamified learning SaaS dark glassmorphism premium Linear Vercel\" --design-system -p \"LearnQuest Auth\" -f markdown)",
+      "Bash(python scripts/search.py \"premium SaaS modern technical geometric display\" --domain typography -n 5)",
+      "Bash(python scripts/search.py \"glassmorphism dark mode aurora\" --domain style -n 5)",
+      "Bash(python scripts/search.py \"auth login form signup onboarding\" --domain landing -n 5)",
+      "Bash(python scripts/search.py \"form input animation accessibility focus\" --domain ux -n 6)",
+      "Bash(npm run *)"
+    ]
+  }
+}
