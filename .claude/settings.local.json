@@ -7,7 +7,19 @@
       "Bash(python scripts/search.py \"glassmorphism dark mode aurora\" --domain style -n 5)",
       "Bash(python scripts/search.py \"auth login form signup onboarding\" --domain landing -n 5)",
       "Bash(python scripts/search.py \"form input animation accessibility focus\" --domain ux -n 6)",
-      "Bash(npm run *)"
+      "Bash(npm run *)",
+      "PowerShell(Get-Process *)",
+      "PowerShell(Get-ChildItem educator-app -Recurse -Force -ErrorAction SilentlyContinue | Where-Object { $_.FullName -match 'node_modules' } | Measure-Object | Select-Object Count; Get-ChildItem educator-app | Select-Object Name)",
+      "Bash(node -c gateway/src/index.js)",
+      "Bash(node -c gateway/src/clerk.js)",
+      "Bash(node -c ai-svc/src/index.js)",
+      "Bash(node -c ai-svc/src/gemini.js)",
+      "Bash(node -c ai-svc/src/routes/questions.js)",
+      "Bash(node *)",
+      "Bash(curl -sS -o /tmp/jwks.json -w \"JWKS_HTTP=%{http_code}\\\\n\" https://regular-oarfish-56.clerk.accounts.dev/.well-known/jwks.json)",
+      "Read(//tmp/**)",
+      "Bash(curl -sS -o /tmp/g.json -w \"GEMINI_HTTP=%{http_code}\\\\n\" -H \"x-goog-api-key: AIzaSyDHeoAKWEwxaRLq0kgFIEkgSigtoZ0odYc\" \"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent\" -H \"Content-Type: application/json\" -d '{\"contents\":[{\"parts\":[{\"text\":\"reply OK\"}]}]}')",
+      "PowerShell(Get-NetTCPConnection *)"
     ]
   }
 }

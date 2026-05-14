@@ -4,6 +4,30 @@ const { query } = require('../db');
 
 const router = express.Router();
 
+// GET /users/me — return (or create) the caller's profile based on Clerk headers
+router.get('/me', async (req, res) => {
+  const id = req.headers['x-user-id'];
+  const email = req.headers['x-user-email'] || '';
+  const role = req.headers['x-user-role'] || 'student';
+  if (!id) return res.status(401).json({ error: 'Missing identity' });
+  try {
+    const existing = await query('SELECT * FROM users WHERE id = $1', [id]);
+    if (existing.rows.length > 0) return res.json(existing.rows[0]);
+    const display_name = (email && email.split('@')[0]) || 'Player';
+    await query(
+      `INSERT INTO users (id, email, role, display_name, xp, level, streak_days)
+       VALUES ($1, $2, $3, $4, 0, 1, 0)
+       ON CONFLICT (id) DO NOTHING`,
+      [id, email || `${id}@unknown`, role, display_name]
+    );
+    const created = await query('SELECT * FROM users WHERE id = $1', [id]);
+    res.status(201).json(created.rows[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to upsert user' });
+  }
+});
+
 // GET /users/leaderboard
 router.get('/leaderboard', async (req, res) => {
   try {

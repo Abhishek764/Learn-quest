@@ -2,14 +2,17 @@ import { useState } from 'react'
 import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { LogOut, Trophy, BarChart2, User, Gamepad2, Home, Menu, X, Flame, Zap, Map, Sword } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
+import { useClerk } from '@clerk/clerk-react'
 
 export default function Navbar() {
   const navigate = useNavigate()
   const location = useLocation()
   const [menuOpen, setMenuOpen] = useState(false)
   const user = JSON.parse(localStorage.getItem('user') || '{}')
+  const { signOut } = useClerk()
 
-  function logout() {
+  async function logout() {
+    await signOut()
     localStorage.removeItem('token')
     localStorage.removeItem('user')
     navigate('/login')

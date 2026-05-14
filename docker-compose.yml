@@ -20,26 +20,15 @@ services:
       - '3000:3000'
     environment:
       NODE_ENV: production
-      JWT_SECRET: ${JWT_SECRET:-supersecret}
-      AUTH_SVC_URL: http://auth-svc:3001
+      CLERK_ISSUER: ${CLERK_ISSUER}
+      CLERK_AUDIENCE: ${CLERK_AUDIENCE:-}
       USER_SVC_URL: http://user-svc:3002
       GAME_SVC_URL: http://game-svc:3003
       ABOA_SVC_URL: http://aboa-svc:3004
       ANALYTICS_SVC_URL: http://analytics-svc:3005
       RT_SVC_URL: http://rt-svc:3006
-    depends_on: [auth-svc, user-svc, game-svc, aboa-svc, analytics-svc, rt-svc]
-
-  auth-svc:
-    build: ./auth-svc
-    restart: unless-stopped
-    ports:
-      - '3001:3001'
-    environment:
-      NODE_ENV: production
-      PORT: 3001
-      DATABASE_URL: postgres://learnquest:learnquest@postgres:5432/learnquest
-      JWT_SECRET: ${JWT_SECRET:-supersecret}
-    depends_on: [postgres]
+      AI_SVC_URL: http://ai-svc:3007
+    depends_on: [user-svc, game-svc, aboa-svc, analytics-svc, rt-svc, ai-svc]
 
   user-svc:
     build: ./user-svc
@@ -50,7 +39,6 @@ services:
       NODE_ENV: production
       PORT: 3002
       DATABASE_URL: postgres://learnquest:learnquest@postgres:5432/learnquest
-      JWT_SECRET: ${JWT_SECRET:-supersecret}
     depends_on: [postgres]
 
   game-svc:
@@ -64,8 +52,8 @@ services:
       DATABASE_URL: postgres://learnquest:learnquest@postgres:5432/learnquest
       ABOA_SVC_URL: http://aboa-svc:3004
       USER_SVC_URL: http://user-svc:3002
-      JWT_SECRET: ${JWT_SECRET:-supersecret}
-    depends_on: [postgres, aboa-svc, user-svc]
+      AI_SVC_URL: http://ai-svc:3007
+    depends_on: [postgres, aboa-svc, user-svc, ai-svc]
 
   aboa-svc:
     build: ./aboa-svc
@@ -96,20 +84,24 @@ services:
       - '3006:3006'
     environment:
       NODE_ENV: production
-      PORT: 3006
-      JWT_SECRET: ${JWT_SECRET:-supersecret}
+      CLERK_ISSUER: ${CLERK_ISSUER}
+
+  ai-svc:
+    build: ./ai-svc
+    restart: unless-stopped
+    ports:
+      - '3007:3007'
+    environment:
+      NODE_ENV: production
+      PORT: 3007
+      GEMINI_API_KEY: ${GEMINI_API_KEY}
+      GEMINI_MODEL: ${GEMINI_MODEL:-gemini-2.0-flash}
 
   student-app:
     build: ./student-app
     restart: unless-stopped
     ports:
       - '5173:80'
-
-  educator-app:
-    build: ./educator-app
-    restart: unless-stopped
-    ports:
-      - '5174:80'
 
 volumes:
   pg_data:

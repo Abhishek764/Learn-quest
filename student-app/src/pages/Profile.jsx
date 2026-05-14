@@ -4,6 +4,7 @@ import { motion } from 'framer-motion'
 import Navbar from '../components/Navbar'
 import AnimatedBackground from '../components/AnimatedBackground'
 import API from '../api'
+import { useClerk } from '@clerk/clerk-react'
 import {
   Zap, Trophy, LogOut, Edit3, Check, X as CloseIcon,
   Flame, Target, Award, Sparkles, Calendar, Lock,
@@ -54,7 +55,9 @@ export default function Profile() {
     } catch {}
   }
 
-  function logout() {
+  const { signOut } = useClerk()
+  async function logout() {
+    await signOut()
     localStorage.removeItem('token')
     localStorage.removeItem('user')
     navigate('/login')

@@ -1,7 +1,7 @@
-FROM node:22-alpine
+FROM node:20-alpine
 WORKDIR /app
 COPY package*.json ./
-RUN npm install --legacy-peer-deps --omit=dev
+RUN npm install --omit=dev
 COPY src ./src
-EXPOSE 3001
+EXPOSE 3007
 CMD ["node", "src/index.js"]
