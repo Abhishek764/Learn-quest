@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Link, useNavigate, useLocation } from 'react-router-dom'
-import { LogOut, Trophy, BarChart2, User, Gamepad2, Home, Menu, X, Flame, Zap, Map } from 'lucide-react'
+import { LogOut, Trophy, BarChart2, User, Gamepad2, Home, Menu, X, Flame, Zap, Map, Sword } from 'lucide-react'
+import { motion, AnimatePresence } from 'framer-motion'
 
 export default function Navbar() {
   const navigate = useNavigate()
@@ -19,25 +20,27 @@ export default function Navbar() {
   const streak = user.streak_days || 0
 
   const links = [
-    { to: '/dashboard', icon: <Home size={16} />, label: 'Home' },
-    { to: '/games', icon: <Gamepad2 size={16} />, label: 'Play' },
-    { to: '/skill-tree', icon: <Map size={16} />, label: 'Skills' },
-    { to: '/progress', icon: <BarChart2 size={16} />, label: 'Progress' },
-    { to: '/leaderboard', icon: <Trophy size={16} />, label: 'Rankings' },
+    { to: '/dashboard', icon: <Home size={15} />, label: 'Home' },
+    { to: '/games', icon: <Gamepad2 size={15} />, label: 'Play' },
+    { to: '/skill-tree', icon: <Map size={15} />, label: 'Skills' },
+    { to: '/progress', icon: <BarChart2 size={15} />, label: 'Progress' },
+    { to: '/leaderboard', icon: <Trophy size={15} />, label: 'Rankings' },
   ]
 
   const isActive = (path) => location.pathname === path
 
   return (
     <nav className="navbar">
-      <div className="flex items-center gap-md">
+      <div style={{ display: 'flex', alignItems: 'center', gap: '2rem' }}>
         <Link to="/dashboard" className="navbar-brand" style={{ textDecoration: 'none' }}>
-          <span className="brand-icon">⚡</span>
+          <motion.span className="brand-icon" whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.95 }}>
+            ⚡
+          </motion.span>
           LearnQuest
         </Link>
         <ul className={`navbar-links ${menuOpen ? 'open' : ''}`}>
           {links.map(l => (
-            <li key={l.to}>
+            <li key={l.to} style={{ listStyle: 'none' }}>
               <Link
                 to={l.to}
                 className={isActive(l.to) ? 'active' : ''}
@@ -53,18 +56,20 @@ export default function Navbar() {
 
       <div className="navbar-right">
         {streak > 0 && (
-          <span className="streak-badge">
-            <Flame size={14} /> {streak}
-          </span>
+          <motion.span className="streak-badge" initial={{ scale: 0 }} animate={{ scale: 1 }}>
+            <Flame size={13} /> {streak}
+          </motion.span>
         )}
-        <span className="xp-badge">
-          <Zap size={13} /> {xp.toLocaleString()} XP
-        </span>
-        <span className="level-badge">Lv.{level}</span>
-        <Link to="/profile" style={{ color: 'var(--text-muted)', display: 'flex' }}>
+        <motion.span className="xp-badge" whileHover={{ scale: 1.05 }}>
+          <Zap size={12} /> {xp.toLocaleString()} XP
+        </motion.span>
+        <motion.span className="level-badge" whileHover={{ scale: 1.05 }}>
+          Lv.{level}
+        </motion.span>
+        <Link to="/profile" style={{ color: 'var(--text-muted)', display: 'flex', transition: 'color 0.2s' }}>
           <User size={18} />
         </Link>
-        <button onClick={logout} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', display: 'flex' }}>
+        <button onClick={logout} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', display: 'flex', transition: 'color 0.2s' }}>
           <LogOut size={18} />
         </button>
         <button className="hamburger" onClick={() => setMenuOpen(!menuOpen)}>
