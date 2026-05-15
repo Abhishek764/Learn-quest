@@ -14,8 +14,12 @@ const ABOA_URL = process.env.ABOA_SVC_URL || 'http://localhost:3004';
 const ANALYTICS_URL = process.env.ANALYTICS_SVC_URL || 'http://localhost:3005';
 const AI_URL = process.env.AI_SVC_URL || 'http://localhost:3007';
 
+const corsOrigins = (process.env.CORS_ORIGINS || 'http://localhost:5173,http://localhost:5174,http://localhost:5175')
+  .split(',')
+  .map(s => s.trim())
+  .filter(Boolean);
 app.use(cors({
-  origin: ['http://localhost:5173', 'http://localhost:5174', 'http://localhost:5175'],
+  origin: corsOrigins,
   credentials: true
 }));
 
