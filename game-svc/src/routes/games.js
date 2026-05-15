@@ -1,4 +1,5 @@
 const express = require('express');
+const axios = require('axios');
 const { v4: uuidv4 } = require('uuid');
 const { query } = require('../db');
 
@@ -8,9 +9,25 @@ const ABOA_URL = process.env.ABOA_SVC_URL || 'http://localhost:3004';
 const USER_URL = process.env.USER_SVC_URL || 'http://localhost:3002';
 const ANALYTICS_URL = process.env.ANALYTICS_SVC_URL || 'http://localhost:3005';
 
+function safeParse(v, fallback) {
+  if (v == null) return fallback;
+  if (typeof v === 'object') return v;
+  try { return JSON.parse(v); } catch { return fallback; }
+}
+
+function pickLocale(parsed, fallback = '') {
+  if (parsed == null) return fallback;
+  if (typeof parsed === 'string') return parsed;
+  if (typeof parsed === 'object') {
+    if ('en' in parsed) return parsed.en;
+    const firstKey = Object.keys(parsed)[0];
+    if (firstKey) return parsed[firstKey];
+  }
+  return fallback;
+}
+
 async function callAboa(data) {
   try {
-    const axios = require('axios');
     const res = await axios.post(`${ABOA_URL}/aboa/compute`, data, { timeout: 3000 });
     return res.data;
   } catch {
@@ -122,7 +139,6 @@ router.get('/sessions/:id/next-question', async (req, res) => {
     // ── INTELLIGENT QUESTION SELECTION (ABOA) ──
     let q;
     try {
-      const ABOA_URL = process.env.ABOA_SVC_URL || 'http://localhost:3004';
       const aboaRes = await axios.post(`${ABOA_URL}/aboa/recommend-question`, {
         user_id: session.user_id,
         session_id: req.params.id,
@@ -135,7 +151,8 @@ router.get('/sessions/:id/next-question', async (req, res) => {
       // Score each candidate using ABOA factors
       const aboa = require('../../../aboa-svc/src/aboa');
       const scored = candidates.map(c => {
-        const conceptId = qcMap[c.id] || (JSON.parse(c.concept_tags || '[]'))[0] || null;
+        const tags = safeParse(c.concept_tags, []);
+        const conceptId = qcMap[c.id] || tags[0] || null;
         return aboa.scoreQuestion(
           { ...c, concept_node_id: conceptId },
           { ...scoring_context, answeredIds }
@@ -148,23 +165,23 @@ router.get('/sessions/:id/next-question', async (req, res) => {
       q = candidates[Math.floor(Math.random() * candidates.length)];
     }
 
-    // parse JSON fields
-    const content = typeof q.content_i18n === 'string' ? JSON.parse(q.content_i18n) : q.content_i18n;
-    const options = typeof q.options_i18n === 'string' ? JSON.parse(q.options_i18n) : q.options_i18n;
-    const explanation = typeof q.explanation_i18n === 'string' ? JSON.parse(q.explanation_i18n) : q.explanation_i18n;
+    const content = safeParse(q.content_i18n, {});
+    const options = safeParse(q.options_i18n, {});
+    const explanation = safeParse(q.explanation_i18n, {});
 
     // hint: 2 wrong indices to eliminate (never includes correct_option)
     const wrongIndices = [0,1,2,3].filter(i => i !== q.correct_option);
     wrongIndices.sort(() => Math.random() - 0.5);
     const hint_eliminated = wrongIndices.slice(0, 2);
 
+    const optsResolved = pickLocale(options, []);
     res.json({
       id: q.id,
       subject: q.subject,
       difficulty: q.difficulty,
       type: q.type,
-      content: content.en || content,
-      options: options.en || options,
+      content: pickLocale(content, ''),
+      options: Array.isArray(optsResolved) ? optsResolved : [],
       hint_eliminated,
       question_number: answeredIds.length + 1,
       total_questions: 10
@@ -214,7 +231,7 @@ router.post('/sessions/:id/answer', async (req, res) => {
     const accuracy = total > 0 ? correct / total : 0;
 
     // call ABOA with concept info for mastery updates
-    const conceptTags = JSON.parse(question.concept_tags || '[]');
+    const conceptTags = safeParse(question.concept_tags, []);
     const aboaResult = await callAboa({
       user_id: session.user_id,
       session_id: req.params.id,
@@ -246,14 +263,12 @@ router.post('/sessions/:id/answer', async (req, res) => {
       );
     }
 
-    const explanation = typeof question.explanation_i18n === 'string'
-      ? JSON.parse(question.explanation_i18n)
-      : question.explanation_i18n;
+    const explanation = safeParse(question.explanation_i18n, {});
 
     res.json({
       correct: is_correct,
       correct_option: question.correct_option,
-      explanation: explanation.en || explanation,
+      explanation: pickLocale(explanation, ''),
       new_difficulty: aboaResult.new_difficulty,
       xp_gained,
       engagement_score: aboaResult.engagement_score
@@ -331,9 +346,9 @@ router.get('/questions', async (req, res) => {
     const result = await query('SELECT * FROM questions ORDER BY created_at DESC');
     const LETTERS = ['A', 'B', 'C', 'D'];
     const rows = result.rows.map(q => {
-      const content = typeof q.content_i18n === 'string' ? JSON.parse(q.content_i18n) : q.content_i18n;
-      const options = typeof q.options_i18n === 'string' ? JSON.parse(q.options_i18n) : q.options_i18n;
-      const opts = options.en || options;
+      const content = safeParse(q.content_i18n, {});
+      const options = safeParse(q.options_i18n, {});
+      const opts = pickLocale(options, []);
       return {
         id: q.id,
         subject: q.subject,

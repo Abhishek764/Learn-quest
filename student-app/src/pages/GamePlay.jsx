@@ -162,10 +162,11 @@ export default function GamePlay() {
   }
 
   function handleTimeout() {
-    setLives(l => l - 1)
+    const newLives = lives - 1
+    setLives(newLives)
     setFeedback({ correct: false, explanation: 'Time ran out!' })
     setPhase('result')
-    if (lives <= 1) setTimeout(() => endSession(sessionId), 1500)
+    if (newLives <= 0) setTimeout(() => endSession(sessionId), 1500)
     else setTimeout(() => loadQuestion(sessionId), 1800)
   }
 
@@ -180,15 +181,17 @@ export default function GamePlay() {
       })
       const isCorrect = res.data.correct
       setFeedback({ correct: isCorrect, explanation: res.data.explanation || '' })
+      let newLives = lives
       if (isCorrect) {
         setScore(s => s + Math.round(res.data.xp_gained || 10))
         setXpGained(x => x + (res.data.xp_gained || 10))
         setStreak(s => s + 1)
       } else {
-        setLives(l => l - 1); setStreak(0)
+        newLives = lives - 1
+        setLives(newLives); setStreak(0)
       }
       setPhase('result')
-      if (!isCorrect && lives <= 1) setTimeout(() => endSession(sessionId), 1800)
+      if (!isCorrect && newLives <= 0) setTimeout(() => endSession(sessionId), 1800)
       else if (questionNum >= totalQ) setTimeout(() => endSession(sessionId), 1800)
       else setTimeout(() => loadQuestion(sessionId), 1800)
     } catch {}
@@ -207,10 +210,11 @@ export default function GamePlay() {
       })
     } catch {}
     setFeedback({ correct: isCorrect, explanation: isCorrect ? 'Correct' : 'Wrong' })
+    let newLives = lives
     if (isCorrect) { setScore(s => s + 15); setXpGained(x => x + 15); setStreak(s => s + 1) }
-    else { setLives(l => l - 1); setStreak(0) }
+    else { newLives = lives - 1; setLives(newLives); setStreak(0) }
     setPhase('result')
-    if (!isCorrect && lives <= 1) setTimeout(() => endSession(sessionId), 1500)
+    if (!isCorrect && newLives <= 0) setTimeout(() => endSession(sessionId), 1500)
     else if (questionNum >= totalQ) setTimeout(() => endSession(sessionId), 1500)
     else setTimeout(() => loadQuestion(sessionId), 1500)
   }
@@ -228,10 +232,11 @@ export default function GamePlay() {
       })
     } catch {}
     setFeedback({ correct: isCorrect, explanation: isCorrect ? 'Perfect' : `Answer: ${question.options[correctIdx]}` })
+    let newLives = lives
     if (isCorrect) { setScore(s => s + 20); setXpGained(x => x + 20); setStreak(s => s + 1) }
-    else { setLives(l => l - 1); setStreak(0) }
+    else { newLives = lives - 1; setLives(newLives); setStreak(0) }
     setPhase('result')
-    if (!isCorrect && lives <= 1) setTimeout(() => endSession(sessionId), 1500)
+    if (!isCorrect && newLives <= 0) setTimeout(() => endSession(sessionId), 1500)
     else if (questionNum >= totalQ) setTimeout(() => endSession(sessionId), 1500)
     else setTimeout(() => loadQuestion(sessionId), 1500)
   }

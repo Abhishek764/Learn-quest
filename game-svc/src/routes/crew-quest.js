@@ -3,6 +3,23 @@ const router = express.Router();
 const { v4: uuidv4 } = require('uuid');
 const { query } = require('../db');
 
+function safeParse(v, fallback) {
+  if (v == null) return fallback;
+  if (typeof v === 'object') return v;
+  try { return JSON.parse(v); } catch { return fallback; }
+}
+
+function pickLocale(parsed, fallback) {
+  if (parsed == null) return fallback;
+  if (typeof parsed === 'string') return parsed;
+  if (typeof parsed === 'object') {
+    if ('en' in parsed) return parsed.en;
+    const firstKey = Object.keys(parsed)[0];
+    if (firstKey) return parsed[firstKey];
+  }
+  return fallback;
+}
+
 // ═══════════════════════════════════════════════════════════════
 // CREW QUEST — Among Us-style multiplayer room management
 // In-memory rooms (no DB needed, rooms are ephemeral)
@@ -117,32 +134,41 @@ router.post('/start', async (req, res) => {
     if (room.host_id !== user_id) return res.status(403).json({ error: 'Only host can start' });
     if (room.players.length < 1) return res.status(400).json({ error: 'Need at least 1 player' });
 
-    // Load questions for each player
+    // Load questions for each player (cap pool to keep memory bounded)
     const subject = room.subject !== 'all' ? room.subject : null;
+    const POOL_LIMIT = 200;
     let questionPool;
     if (subject) {
-      questionPool = await query('SELECT * FROM questions WHERE subject = $1', [subject]);
+      questionPool = await query('SELECT * FROM questions WHERE subject = $1 LIMIT $2', [subject, POOL_LIMIT]);
     } else {
-      questionPool = await query('SELECT * FROM questions');
+      questionPool = await query('SELECT * FROM questions LIMIT $1', [POOL_LIMIT]);
     }
     const allQ = questionPool.rows;
+    if (allQ.length === 0) {
+      return res.status(400).json({ error: 'No questions available for this subject' });
+    }
 
     // Assign tasks to each player
     for (const player of room.players) {
       const shuffled = [...allQ].sort(() => Math.random() - 0.5);
-      const assigned = shuffled.slice(0, room.rounds);
-      player.tasks = assigned.map((q, i) => ({
-        id: `task-${i}`,
-        question_id: q.id,
-        question: typeof q.content_i18n === 'string' ? JSON.parse(q.content_i18n).en : q.content_i18n?.en || '',
-        options: typeof q.options_i18n === 'string' ? JSON.parse(q.options_i18n).en : q.options_i18n?.en || [],
-        correct_option: q.correct_option,
-        difficulty: q.difficulty,
-        subject: q.subject,
-        completed: false,
-        correct: null,
-        location: getTaskLocation(i),
-      }));
+      const assigned = shuffled.slice(0, Math.min(room.rounds, allQ.length));
+      player.tasks = assigned.map((q, i) => {
+        const content = safeParse(q.content_i18n, {});
+        const options = safeParse(q.options_i18n, {});
+        const opts = pickLocale(options, []);
+        return {
+          id: `task-${i}`,
+          question_id: q.id,
+          question: pickLocale(content, ''),
+          options: Array.isArray(opts) ? opts : [],
+          correct_option: q.correct_option,
+          difficulty: q.difficulty,
+          subject: q.subject,
+          completed: false,
+          correct: null,
+          location: getTaskLocation(i),
+        };
+      });
       player.tasks_completed = 0;
     }
 

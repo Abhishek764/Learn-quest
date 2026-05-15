@@ -12,6 +12,7 @@ import Profile from './pages/Profile'
 import SkillTree from './pages/SkillTree'
 import Quests from './pages/Quests'
 import CrewQuest from './pages/CrewQuest'
+import AiPractice from './pages/AiPractice'
 import API, { setAuthTokenGetter } from './api'
 
 function PrivateRoute({ children }) {
@@ -62,6 +63,7 @@ export default function App() {
         <Route path="/games" element={<PrivateRoute><Games /></PrivateRoute>} />
         <Route path="/games/play" element={<PrivateRoute><GamePlay /></PrivateRoute>} />
         <Route path="/games/crew-quest" element={<PrivateRoute><CrewQuest /></PrivateRoute>} />
+        <Route path="/games/ai-practice" element={<PrivateRoute><AiPractice /></PrivateRoute>} />
         <Route path="/progress" element={<PrivateRoute><Progress /></PrivateRoute>} />
         <Route path="/leaderboard" element={<PrivateRoute><Leaderboard /></PrivateRoute>} />
         <Route path="/profile" element={<PrivateRoute><Profile /></PrivateRoute>} />

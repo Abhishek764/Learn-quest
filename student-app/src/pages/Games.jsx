@@ -3,12 +3,13 @@ import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import Navbar from '../components/Navbar'
 import AnimatedBackground from '../components/AnimatedBackground'
-import { Zap, Brain, Keyboard, Clock, Shuffle, Crosshair, Lock, Star, ChevronRight, Users } from 'lucide-react'
+import { Zap, Brain, Keyboard, Clock, Shuffle, Crosshair, Lock, Star, ChevronRight, Users, Sparkles } from 'lucide-react'
 
 const ease = [0.22, 1, 0.36, 1]
 const fadeUp = { hidden: { opacity: 0, y: 20 }, visible: (i = 0) => ({ opacity: 1, y: 0, transition: { delay: i * 0.06, duration: 0.5, ease } }) }
 
 const GAME_MODES = [
+  { id: 'ai_practice', name: 'AI Practice', description: 'Gemini generates fresh questions calibrated to your level & XP. Pick a topic, play, learn.', icon: <Sparkles size={26} />, color: '#a78bfa', tag: 'AI · ADAPTIVE', difficulty: 'Your level', time: '2-5 min', locked: false, isAiPractice: true },
   { id: 'crew_quest', name: 'Crew Quest', description: 'Among Us-style multiplayer! Join a room, complete tasks by answering questions. Race to finish first!', icon: <Users size={26} />, color: '#22d3ee', tag: 'MULTIPLAYER', difficulty: 'Adaptive', time: '3-5 min', locked: false, isCrewQuest: true },
   { id: 'lightning_quiz', name: 'Lightning Quiz', description: 'Answer 10 AI-selected questions. Difficulty adapts in real-time to your level.', icon: <Zap size={26} />, color: '#6366f1', tag: 'CLASSIC', difficulty: 'Adaptive', time: '3-5 min', locked: false },
   { id: 'memory_match', name: 'Memory Match', description: 'Flip cards to match questions with answers. Tests recall & memory.', icon: <Brain size={26} />, color: '#8b5cf6', tag: 'MEMORY', difficulty: 'Medium', time: '2-4 min', locked: false },
@@ -32,6 +33,7 @@ export default function Games() {
 
   function startGame(mode) {
     if (mode.locked) return
+    if (mode.isAiPractice) return navigate('/games/ai-practice')
     if (mode.isCrewQuest) return navigate('/games/crew-quest')
     navigate(`/games/play?mode=${mode.id}&subject=${subject === 'all' ? '' : subject}`)
   }

@@ -96,6 +96,8 @@ services:
       PORT: 3007
       GEMINI_API_KEY: ${GEMINI_API_KEY}
       GEMINI_MODEL: ${GEMINI_MODEL:-gemini-2.0-flash}
+      USER_SVC_URL: http://user-svc:3002
+    depends_on: [user-svc]
 
   student-app:
     build: ./student-app
